@@ -7,14 +7,14 @@ import (
 	"testing"
 )
 
-var aAndB = `{ "glue":"and", "data":[{ "field": "a", "condition":{ "rule":"less", "value":1}}, { "field": "b", "condition":{ "rule":"greater", "value":"abc" }}]}`
-var aOrB = `{ "glue":"or", "data":[{ "field": "a", "condition":{ "rule":"less", "value":1}}, { "field": "b", "condition":{ "rule":"greater", "value":"abc" }}]}`
-var cOrC = `{ "glue":"or", "data":[{ "field": "a", "condition":{ "rule":"is null" }}, { "field": "b", "condition":{ "rule":"range100", "value":500 }}]}`
+var aAndB = `{ "glue":"and", "rules":[{ "field": "a", "condition":{ "rule":"less", "value":1}}, { "field": "b", "condition":{ "rule":"greater", "value":"abc" }}]}`
+var aOrB = `{ "glue":"or", "rules":[{ "field": "a", "condition":{ "rule":"less", "value":1}}, { "field": "b", "condition":{ "rule":"greater", "value":"abc" }}]}`
+var cOrC = `{ "glue":"or", "rules":[{ "field": "a", "condition":{ "rule":"is null" }}, { "field": "b", "condition":{ "rule":"range100", "value":500 }}]}`
 
 var cases = [][]string{
 	[]string{`{}`, "", ""},
 	[]string{
-		`{ "glue":"and", "data":[{ "field": "a", "condition":{ "rule":"equal", "value":1 }}]}`,
+		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "rule":"equal", "value":1 }}]}`,
 		"a = ?",
 		"1",
 	},
@@ -29,17 +29,17 @@ var cases = [][]string{
 		"1,abc",
 	},
 	[]string{
-		`{ "glue":"AND", "data":[` + aAndB + `,` + aOrB + `,{ "field":"c", "condition": { "rule":"equal", "value":3 } }]}`,
+		`{ "glue":"AND", "rules":[` + aAndB + `,` + aOrB + `,{ "field":"c", "condition": { "rule":"equal", "value":3 } }]}`,
 		"( ( a < ? AND b > ? ) AND ( a < ? OR b > ? ) AND c = ? )",
 		"1,abc,1,abc,3",
 	},
 	[]string{
-		`{ "glue":"and", "data":[{ "field": "a", "includes":[1,2,3]}]}`,
+		`{ "glue":"and", "rules":[{ "field": "a", "includes":[1,2,3]}]}`,
 		"a IN(?,?,?)",
 		"1,2,3",
 	},
 	[]string{
-		`{ "glue":"and", "data":[{ "field": "a", "includes":["a","b","c"]}]}`,
+		`{ "glue":"and", "rules":[{ "field": "a", "includes":["a","b","c"]}]}`,
 		"a IN(?,?,?)",
 		"a,b,c",
 	},

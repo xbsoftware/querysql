@@ -11,7 +11,7 @@ type Filter struct {
 	Field     string        `json:"field"`
 	Condition Condition     `json:"condition"`
 	Includes  []interface{} `json:"includes"`
-	Kids      []Filter      `json:"data"`
+	Kids      []Filter      `json:"rules"`
 }
 
 type Condition struct {

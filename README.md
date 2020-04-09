@@ -6,7 +6,7 @@ Converts JSON config to SQL Query
 ```json
 {
   "glue": "and",
-  "data": [{
+  "rules": [{
     "field":"age",
     "condition":{
       "rule": "less",
