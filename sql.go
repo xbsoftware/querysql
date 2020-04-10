@@ -15,8 +15,8 @@ type Filter struct {
 }
 
 type Condition struct {
-	Rule  string      `json:"rule"`
-	Value interface{} `json:"value"`
+	Rule  string      `json:"type"`
+	Value interface{} `json:"filter"`
 }
 
 type CustomOperation func(string, Condition) (string, []interface{}, error)
@@ -59,13 +59,24 @@ func GetSQL(data Filter, config *SQLConfig) (string, []interface{}, error) {
 			return "", NoValues, nil
 		case "equal":
 			return fmt.Sprintf("%s = ?", data.Field), []interface{}{data.Condition.Value}, nil
+		case "notEqual":
+			return fmt.Sprintf("%s <> ?", data.Field), []interface{}{data.Condition.Value}, nil
+		case "contains":
+			return fmt.Sprintf("INSTR(%s, ?) > 0", data.Field), []interface{}{data.Condition.Value}, nil
+		case "notContains":
+			return fmt.Sprintf("INSTR(%s, ?) < 0", data.Field), []interface{}{data.Condition.Value}, nil
+		case "lessOrEqual":
+			return fmt.Sprintf("%s <= ?", data.Field), []interface{}{data.Condition.Value}, nil
+		case "greaterOrEqual":
+			return fmt.Sprintf( "%s >= ?", data.Field), []interface{}{data.Condition.Value}, nil
 		case "less":
 			return fmt.Sprintf("%s < ?", data.Field), []interface{}{data.Condition.Value}, nil
 		case "greater":
 			return fmt.Sprintf("%s > ?", data.Field), []interface{}{data.Condition.Value}, nil
+
 		}
 
-		if config.Operations != nil {
+		if config != nil && config.Operations != nil {
 			op, opOk := config.Operations[data.Condition.Rule]
 			if opOk {
 				return op(data.Field, data.Condition)
