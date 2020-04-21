@@ -74,6 +74,36 @@ var cases = [][]string{
 		"1",
 	},
 	[]string{
+		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"between", "filter":{ "start":1, "end":2 } }}]}`,
+		"( a > ? AND a < ? )",
+		"1,2",
+	},
+	[]string{
+		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"between", "filter":{ "start":1 } }}]}`,
+		"a > ?",
+		"1",
+	},
+	[]string{
+		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"between", "filter":{ "end":2 } }}]}`,
+		"a < ?",
+		"2",
+	},
+	[]string{
+		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"notBetween", "filter":{ "start":1, "end":2 } }}]}`,
+		"( a < ? OR a > ? )",
+		"1,2",
+	},
+	[]string{
+		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"notBetween", "filter":{ "start":1 } }}]}`,
+		"a < ?",
+		"1",
+	},
+	[]string{
+		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"notBetween", "filter":{ "end":2 } }}]}`,
+		"a > ?",
+		"2",
+	},
+	[]string{
 		aAndB,
 		"( a < ? AND b > ? )",
 		"1,abc",
@@ -199,11 +229,12 @@ func TestCustomOperation(t *testing.T) {
 
 	sql, vals, err := GetSQL(format, &SQLConfig{
 		Operations: map[string]CustomOperation{
-			"is null" : func(n string, c Condition) (string, []interface{}, error) {
+			"is null" : func(n string, r string, values []interface{}) (string, []interface{}, error) {
 				return fmt.Sprintf("%s IS NULL", n), NoValues, nil
 			},
-			"range100" : func(n string, c Condition) (string, []interface{}, error) {
-				return fmt.Sprintf("( %s > ? AND %s < ? + 100 )", n, n), []interface{}{c.Value, c.Value}, nil
+			"range100" : func(n string, r string, values []interface{}) (string, []interface{}, error) {
+				out := []interface{}{values[0], values[0]}
+				return fmt.Sprintf("( %s > ? AND %s < ? + 100 )", n, n), out, nil
 			},
 		},
 	})
