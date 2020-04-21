@@ -54,6 +54,26 @@ var cases = [][]string{
 		"1",
 	},
 	[]string{
+		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"beginsWith", "filter":"1" }}]}`,
+		"a LIKE CONCAT(?, '%')",
+		"1",
+	},
+	[]string{
+		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"notBeginsWith", "filter":"1" }}]}`,
+		"a NOT LIKE CONCAT(?, '%')",
+		"1",
+	},
+	[]string{
+		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"endsWith", "filter":"1" }}]}`,
+		"a LIKE CONCAT('%', ?)",
+		"1",
+	},
+	[]string{
+		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"notEndsWith", "filter":"1" }}]}`,
+		"a NOT LIKE CONCAT('%', ?)",
+		"1",
+	},
+	[]string{
 		aAndB,
 		"( a < ? AND b > ? )",
 		"1,abc",

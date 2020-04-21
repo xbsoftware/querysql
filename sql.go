@@ -74,16 +74,16 @@ func GetSQL(data Filter, config *SQLConfig) (string, []interface{}, error) {
 		case "greater":
 			return fmt.Sprintf("%s > ?", data.Field), []interface{}{data.Condition.Value}, nil
 		case "beginsWith":
-			search := "concat(?, '%')"
+			search := "CONCAT(?, '%')"
 			return fmt.Sprintf("%s LIKE %s", data.Field, search), []interface{}{data.Condition.Value}, nil
 		case "notBeginsWith":
-			search := "concat(?, '%')"
+			search := "CONCAT(?, '%')"
 			return fmt.Sprintf("%s NOT LIKE %s", data.Field, search), []interface{}{data.Condition.Value}, nil
 		case "endsWith":
-			search := "concat('%', ?)"
+			search := "CONCAT('%', ?)"
 			return fmt.Sprintf("%s LIKE %s", data.Field, search), []interface{}{data.Condition.Value}, nil
 		case "notEndsWith":
-			search := "concat('%', ?)"
+			search := "CONCAT('%', ?)"
 			return fmt.Sprintf("%s NOT LIKE %s", data.Field, search), []interface{}{data.Condition.Value}, nil
 		}
 
