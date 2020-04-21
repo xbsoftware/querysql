@@ -68,12 +68,23 @@ func GetSQL(data Filter, config *SQLConfig) (string, []interface{}, error) {
 		case "lessOrEqual":
 			return fmt.Sprintf("%s <= ?", data.Field), []interface{}{data.Condition.Value}, nil
 		case "greaterOrEqual":
-			return fmt.Sprintf( "%s >= ?", data.Field), []interface{}{data.Condition.Value}, nil
+			return fmt.Sprintf("%s >= ?", data.Field), []interface{}{data.Condition.Value}, nil
 		case "less":
 			return fmt.Sprintf("%s < ?", data.Field), []interface{}{data.Condition.Value}, nil
 		case "greater":
 			return fmt.Sprintf("%s > ?", data.Field), []interface{}{data.Condition.Value}, nil
-
+		case "beginsWith":
+			search := "concat(?, '%')"
+			return fmt.Sprintf("%s LIKE %s", data.Field, search), []interface{}{data.Condition.Value}, nil
+		case "notBeginsWith":
+			search := "concat(?, '%')"
+			return fmt.Sprintf("%s NOT LIKE %s", data.Field, search), []interface{}{data.Condition.Value}, nil
+		case "endsWith":
+			search := "concat('%', ?)"
+			return fmt.Sprintf("%s LIKE %s", data.Field, search), []interface{}{data.Condition.Value}, nil
+		case "notEndsWith":
+			search := "concat('%', ?)"
+			return fmt.Sprintf("%s NOT LIKE %s", data.Field, search), []interface{}{data.Condition.Value}, nil
 		}
 
 		if config != nil && config.Operations != nil {
