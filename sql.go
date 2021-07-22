@@ -60,7 +60,7 @@ func GetSQL(data Filter, config *SQLConfig) (string, []interface{}, error) {
 		case "contains":
 			return fmt.Sprintf("INSTR(%s, ?) > 0", data.Field), values, nil
 		case "notContains":
-			return fmt.Sprintf("INSTR(%s, ?) < 0", data.Field), values, nil
+			return fmt.Sprintf("INSTR(%s, ?) = 0", data.Field), values, nil
 		case "lessOrEqual":
 			return fmt.Sprintf("%s <= ?", data.Field), values, nil
 		case "greaterOrEqual":
