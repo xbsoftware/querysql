@@ -50,7 +50,7 @@ var cases = [][]string{
 	},
 	[]string{
 		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"notContains", "filter":1 }}]}`,
-		"INSTR(a, ?) < 0",
+		"INSTR(a, ?) = 0",
 		"1",
 	},
 	[]string{
@@ -129,7 +129,6 @@ var cases = [][]string{
 		"a,b,c",
 	},
 }
-
 
 func anyToStringArray(some []interface{}) (string, error) {
 	out := make([]string, 0, len(some))
@@ -229,10 +228,10 @@ func TestCustomOperation(t *testing.T) {
 
 	sql, vals, err := GetSQL(format, &SQLConfig{
 		Operations: map[string]CustomOperation{
-			"is null" : func(n string, r string, values []interface{}) (string, []interface{}, error) {
+			"is null": func(n string, r string, values []interface{}) (string, []interface{}, error) {
 				return fmt.Sprintf("%s IS NULL", n), NoValues, nil
 			},
-			"range100" : func(n string, r string, values []interface{}) (string, []interface{}, error) {
+			"range100": func(n string, r string, values []interface{}) (string, []interface{}, error) {
 				out := []interface{}{values[0], values[0]}
 				return fmt.Sprintf("( %s > ? AND %s < ? + 100 )", n, n), out, nil
 			},
@@ -250,15 +249,15 @@ func TestCustomOperation(t *testing.T) {
 		return
 	}
 
-		valsStr, err := anyToStringArray(vals)
-		if err != nil {
-			t.Errorf("can't convert parameters\nj: %s\n%f", cOrC, err)
-			return
-		}
+	valsStr, err := anyToStringArray(vals)
+	if err != nil {
+		t.Errorf("can't convert parameters\nj: %s\n%f", cOrC, err)
+		return
+	}
 
-		check = "500,500"
-		if valsStr != check {
-			t.Errorf("wrong sql generated\nj: %s\ns: %s\nr: %s", cOrC, check, valsStr)
-			return
-		}
+	check = "500,500"
+	if valsStr != check {
+		t.Errorf("wrong sql generated\nj: %s\ns: %s\nr: %s", cOrC, check, valsStr)
+		return
+	}
 }

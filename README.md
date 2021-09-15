@@ -56,7 +56,7 @@ Blocks can be nested like next
 }
 ```
 
-### between / notBeetween
+### between / notBetween
 
 For those operations, both start and end values can be provided
 
