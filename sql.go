@@ -109,6 +109,7 @@ func GetSQL(data Filter, config *SQLConfig) (string, []interface{}, error) {
 				return fmt.Sprintf("INSTR(%s, ?) > 0", data.Field), values, nil
 			case DB_POSTGRESQL:
 				if isDynamicField {
+					// Quotes (" ... ") are needed for correct work. Fields of type text in JSONB are wrapped by default
 					return fmt.Sprintf("%s LIKE '\"%%' ||  $  || '%%\"'", data.Field), values, nil
 				}
 				return fmt.Sprintf("%s LIKE '%%' ||  $  || '%%'", data.Field), values, nil
@@ -243,6 +244,7 @@ func GetSQL(data Filter, config *SQLConfig) (string, []interface{}, error) {
 		outStr = "( " + outStr + " )"
 	}
 
+	// number all placeholders
 	if DB == DB_POSTGRESQL {
 		n := 1
 		for strings.Contains(outStr, " $ ") {
