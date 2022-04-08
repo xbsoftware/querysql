@@ -40,7 +40,11 @@ func inSQL(field string, data []interface{}) (string, []interface{}, error) {
 }
 
 func GetSQL(data Filter, config *SQLConfig) (string, []interface{}, error) {
-	if data.Kids == nil && data.Field != "" {
+	if data.Kids == nil && data.Field == "" {
+		return "", make([]interface{}, 0), nil
+	}
+	
+	if data.Kids == nil {
 		if config != nil && config.Whitelist != nil && !config.Whitelist[data.Field] {
 			return "", nil, fmt.Errorf("field name is not in whitelist: %s", data.Field)
 		}
