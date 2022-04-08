@@ -63,6 +63,10 @@ func GetSQL(data Filter, config *SQLConfig, dbArr ...DBDriver) (string, []interf
 	}
 
 	if data.Kids == nil {
+		if data.Field == "" {
+			return "", make([]interface{}, 0), nil
+		}
+
 		if !checkWhitelist(data.Field, config) {
 			return "", nil, fmt.Errorf("field name is not in whitelist: %s", data.Field)
 		}
