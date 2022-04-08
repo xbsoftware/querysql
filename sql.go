@@ -6,14 +6,17 @@ import (
 	"strings"
 )
 
-const (
-	DB_MYSQL DatabaseType = iota
-	DB_POSTGRESQL
-)
+type DBDriver interface {
+	Mark() string
+	IsJSON(name string) (string, bool)
 
-type DatabaseType int
-
-var DB DatabaseType = DB_MYSQL
+	Contains(v string, isJSON bool) string
+	NotContains(v string, isJSON bool) string
+	BeginsWith(v string, isJSON bool) string
+	NotBeginsWith(v string, isJSON bool) string
+	EndsWith(v string, isJSON bool) string
+	NotEndsWith(v string, isJSON bool) string
+}
 
 type Filter struct {
 	Glue      string        `json:"glue"`
@@ -25,16 +28,11 @@ type Filter struct {
 
 type CustomOperation func(string, string, []interface{}) (string, []interface{}, error)
 
+type CheckFunction = func(string) bool
 type SQLConfig struct {
-	Whitelist         map[string]bool
-	Operations        map[string]CustomOperation
-	DynamicFields     []DynamicField
-	DynamicConfigName string
-}
-
-type DynamicField struct {
-	Key  string `json:"key"`
-	Type string `json:"type"`
+	WhitelistFunc CheckFunction
+	Whitelist     map[string]bool
+	Operations    map[string]CustomOperation
 }
 
 func FromJSON(text []byte) (Filter, error) {
@@ -46,53 +44,33 @@ func FromJSON(text []byte) (Filter, error) {
 
 var NoValues = make([]interface{}, 0)
 
-func inSQL(field string, data []interface{}, placeholder string) (string, []interface{}, error) {
+func inSQL(field string, data []interface{}, db DBDriver) (string, []interface{}, error) {
 	marks := make([]string, len(data))
 	for i := range marks {
-		marks[i] = placeholder
+		marks[i] = db.Mark()
 	}
 
 	sql := fmt.Sprintf("%s IN(%s)", field, strings.Join(marks, ","))
 	return sql, data, nil
 }
 
-func GetSQL(data Filter, config *SQLConfig) (string, []interface{}, error) {
+func GetSQL(data Filter, config *SQLConfig, dbArr ...DBDriver) (string, []interface{}, error) {
+	var db DBDriver
+	if len(dbArr) > 0 {
+		db = dbArr[0]
+	} else {
+		db = MySQL{}
+	}
+
 	if data.Kids == nil {
-		if config != nil && config.Whitelist != nil && !config.Whitelist[data.Field] {
+		if !checkWhitelist(data.Field, config) {
 			return "", nil, fmt.Errorf("field name is not in whitelist: %s", data.Field)
 		}
 
-		ph, err := getPlaceholder()
-		if err != nil {
-			return "", nil, err
-		}
-
-		var isDynamicField bool
-		if DB == DB_POSTGRESQL {
-			f := getDynamicField(config.DynamicFields, data.Field)
-			if f != nil {
-				if config.DynamicConfigName == "" {
-					return "", nil, fmt.Errorf("dynamic config name is empty")
-				}
-				parts := strings.Split(data.Field, ".")
-				tp := GetJSONBType(f.Type)
-				var s, e string
-				if tp == "date" {
-					s = "CAST("
-					e = " AS DATE)"
-					tp = "text"
-				}
-				if len(parts) == 1 {
-					data.Field = fmt.Sprintf("%s(%s->'%s')::%s%s", s, config.DynamicConfigName, parts[0], tp, e)
-				} else if len(parts) == 2 {
-					data.Field = fmt.Sprintf("%s(\"%s\".%s->'%s')::%s%s", s, parts[0], config.DynamicConfigName, parts[1], tp, e)
-				}
-				isDynamicField = true
-			}
-		}
+		name, isDynamicField := db.IsJSON(data.Field)
 
 		if len(data.Includes) > 0 {
-			return inSQL(data.Field, data.Includes, ph)
+			return inSQL(name, data.Includes, db)
 		}
 
 		values := data.Condition.getValues()
@@ -100,47 +78,30 @@ func GetSQL(data Filter, config *SQLConfig) (string, []interface{}, error) {
 		case "":
 			return "", NoValues, nil
 		case "equal":
-			return fmt.Sprintf("%s = %s", data.Field, ph), values, nil
+			return fmt.Sprintf("%s = %s", name, db.Mark()), values, nil
 		case "notEqual":
-			return fmt.Sprintf("%s <> %s", data.Field, ph), values, nil
+			return fmt.Sprintf("%s <> %s", name, db.Mark()), values, nil
 		case "contains":
-			switch DB {
-			case DB_MYSQL:
-				return fmt.Sprintf("INSTR(%s, ?) > 0", data.Field), values, nil
-			case DB_POSTGRESQL:
-				if isDynamicField {
-					// Quotes (" ... ") are needed for correct work. Fields of type text in JSONB are wrapped by default
-					return fmt.Sprintf("%s LIKE '\"%%' ||  $  || '%%\"'", data.Field), values, nil
-				}
-				return fmt.Sprintf("%s LIKE '%%' ||  $  || '%%'", data.Field), values, nil
-			}
+			return db.Contains(name, isDynamicField), values, nil
 		case "notContains":
-			switch DB {
-			case DB_MYSQL:
-				return fmt.Sprintf("INSTR(%s, ?) = 0", data.Field), values, nil
-			case DB_POSTGRESQL:
-				if isDynamicField {
-					return fmt.Sprintf("%s NOT LIKE '\"%%' ||  $  || '%%\"'", data.Field), values, nil
-				}
-				return fmt.Sprintf("%s NOT LIKE '%%' ||  $  || '%%'", data.Field), values, nil
-			}
+			return db.NotContains(name, isDynamicField), values, nil
 		case "lessOrEqual":
-			return fmt.Sprintf("%s <= %s", data.Field, ph), values, nil
+			return fmt.Sprintf("%s <= %s", name, db.Mark()), values, nil
 		case "greaterOrEqual":
-			return fmt.Sprintf("%s >= %s", data.Field, ph), values, nil
+			return fmt.Sprintf("%s >= %s", name, db.Mark()), values, nil
 		case "less":
-			return fmt.Sprintf("%s < %s", data.Field, ph), values, nil
+			return fmt.Sprintf("%s < %s", name, db.Mark()), values, nil
 		case "notBetween":
 			if len(values) != 2 {
 				return "", nil, fmt.Errorf("wrong number of parameters for notBetween operation: %d", len(values))
 			}
 
 			if values[0] == nil {
-				return fmt.Sprintf("%s > %s", data.Field, ph), values[1:], nil
+				return fmt.Sprintf("%s > %s", name, db.Mark()), values[1:], nil
 			} else if values[1] == nil {
-				return fmt.Sprintf("%s < %s", data.Field, ph), values[:1], nil
+				return fmt.Sprintf("%s < %s", name, db.Mark()), values[:1], nil
 			} else {
-				return fmt.Sprintf("( %s < %s OR %s > %s )", data.Field, ph, data.Field, ph), values, nil
+				return fmt.Sprintf("( %s < %s OR %s > %s )", name, db.Mark(), name, db.Mark()), values, nil
 			}
 		case "between":
 			if len(values) != 2 {
@@ -148,72 +109,28 @@ func GetSQL(data Filter, config *SQLConfig) (string, []interface{}, error) {
 			}
 
 			if values[0] == nil {
-				return fmt.Sprintf("%s < %s", data.Field, ph), values[1:], nil
+				return fmt.Sprintf("%s < %s", name, db.Mark()), values[1:], nil
 			} else if values[1] == nil {
-				return fmt.Sprintf("%s > %s", data.Field, ph), values[:1], nil
+				return fmt.Sprintf("%s > %s", name, db.Mark()), values[:1], nil
 			} else {
-				return fmt.Sprintf("( %s > %s AND %s < %s )", data.Field, ph, data.Field, ph), values, nil
+				return fmt.Sprintf("( %s > %s AND %s < %s )", name, db.Mark(), name, db.Mark()), values, nil
 			}
 		case "greater":
-			return fmt.Sprintf("%s > %s", data.Field, ph), values, nil
+			return fmt.Sprintf("%s > %s", name, db.Mark()), values, nil
 		case "beginsWith":
-			var search string
-			switch DB {
-			case DB_MYSQL:
-				search = "CONCAT(?, '%')"
-			case DB_POSTGRESQL:
-				if isDynamicField {
-					search = "'\"' ||  $  || '%'"
-				} else {
-					search = " $  || '%'"
-				}
-			}
-			return fmt.Sprintf("%s LIKE %s", data.Field, search), values, nil
+			return db.BeginsWith(name, isDynamicField), values, nil
 		case "notBeginsWith":
-			var search string
-			switch DB {
-			case DB_MYSQL:
-				search = "CONCAT(?, '%')"
-			case DB_POSTGRESQL:
-				if isDynamicField {
-					search = "'\"' ||  $  || '%'"
-				} else {
-					search = " $  || '%'"
-				}
-			}
-			return fmt.Sprintf("%s NOT LIKE %s", data.Field, search), values, nil
+			return db.NotBeginsWith(name, isDynamicField), values, nil
 		case "endsWith":
-			var search string
-			switch DB {
-			case DB_MYSQL:
-				search = "CONCAT('%', ?)"
-			case DB_POSTGRESQL:
-				if isDynamicField {
-					search = "'%' ||  $  || '\"'"
-				} else {
-					search = "'%' ||  $ "
-				}
-			}
-			return fmt.Sprintf("%s LIKE %s", data.Field, search), values, nil
+			return db.EndsWith(name, isDynamicField), values, nil
 		case "notEndsWith":
-			var search string
-			switch DB {
-			case DB_MYSQL:
-				search = "CONCAT('%', ?)"
-			case DB_POSTGRESQL:
-				if isDynamicField {
-					search = "'%' ||  $ || '\"'"
-				} else {
-					search = "'%' ||  $ "
-				}
-			}
-			return fmt.Sprintf("%s NOT LIKE %s", data.Field, search), values, nil
+			return db.NotEndsWith(name, isDynamicField), values, nil
 		}
 
 		if config != nil && config.Operations != nil {
 			op, opOk := config.Operations[data.Condition.Rule]
 			if opOk {
-				return op(data.Field, data.Condition.Rule, data.Condition.getValues())
+				return op(name, data.Condition.Rule, data.Condition.getValues())
 			}
 		}
 
@@ -224,7 +141,7 @@ func GetSQL(data Filter, config *SQLConfig) (string, []interface{}, error) {
 	values := make([]interface{}, 0)
 
 	for _, r := range data.Kids {
-		subSql, subValues, err := GetSQL(r, config)
+		subSql, subValues, err := GetSQL(r, config, db)
 		if err != nil {
 			return "", nil, err
 		}
@@ -244,43 +161,27 @@ func GetSQL(data Filter, config *SQLConfig) (string, []interface{}, error) {
 		outStr = "( " + outStr + " )"
 	}
 
-	// number all placeholders
-	if DB == DB_POSTGRESQL {
-		n := 1
-		for strings.Contains(outStr, " $ ") {
-			outStr = strings.Replace(outStr, " $ ", fmt.Sprintf("$%d", n), 1)
-			n = n + 1
-		}
-	}
-
 	return outStr, values, nil
 }
 
-func getPlaceholder() (string, error) {
-	switch DB {
-	case DB_MYSQL:
-		return "?", nil
-	case DB_POSTGRESQL:
-		return " $ ", nil
-	default:
-		return "", fmt.Errorf("unknown database")
+func checkWhitelist(name string, config *SQLConfig) bool {
+	if config == nil {
+		return true
 	}
-}
+	if config.Whitelist == nil && config.WhitelistFunc == nil {
+		return true
+	}
 
-func getDynamicField(array []DynamicField, value string) *DynamicField {
-	for _, v := range array {
-		if v.Key == value {
-			return &v
+	if config.Whitelist != nil {
+		if config.Whitelist[name] {
+			return true
 		}
 	}
-	return nil
-}
 
-func GetJSONBType(t string) string {
-	switch t {
-	case "number":
-		return "numeric"
-	default:
-		return t
+	if config.WhitelistFunc != nil {
+		return config.WhitelistFunc(name)
 	}
+
+	return false
+
 }

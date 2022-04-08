@@ -10,174 +10,180 @@ import (
 var aAndB = `{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"less", "filter":1}}, { "field": "b", "condition":{ "type":"greater", "filter":"abc" }}]}`
 var aOrB = `{ "glue":"or", "rules":[{ "field": "a", "condition":{ "type":"less", "filter":1}}, { "field": "b", "condition":{ "type":"greater", "filter":"abc" }}]}`
 var cOrC = `{ "glue":"or", "rules":[{ "field": "a", "condition":{ "type":"is null" }}, { "field": "b", "condition":{ "type":"range100", "filter":500 }}]}`
+var JSONaAndB = `{ "glue":"and", "rules":[{ "field": "json:cfg.a", "condition":{ "type":"less", "filter":1}}, { "field": "json:cfg.b", "condition":{ "type":"greater", "filter":"abc" }}]}`
 
 var cases = [][]string{
-	[]string{`{}`, "", ""},
-	[]string{
+	{`{}`, "", ""},
+	{
 		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"equal", "filter":1 }}]}`,
 		"a = ?",
 		"1",
 	},
-	[]string{
+	{
 		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"notEqual", "filter":1 }}]}`,
 		"a <> ?",
 		"1",
 	},
-	[]string{
+	{
 		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"less", "filter":1 }}]}`,
 		"a < ?",
 		"1",
 	},
-	[]string{
+	{
 		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"lessOrEqual", "filter":1 }}]}`,
 		"a <= ?",
 		"1",
 	},
-	[]string{
+	{
 		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"greater", "filter":1 }}]}`,
 		"a > ?",
 		"1",
 	},
-	[]string{
+	{
 		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"greaterOrEqual", "filter":1 }}]}`,
 		"a >= ?",
 		"1",
 	},
-	[]string{
+	{
 		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"contains", "filter":1 }}]}`,
 		"INSTR(a, ?) > 0",
 		"1",
 	},
-	[]string{
+	{
 		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"notContains", "filter":1 }}]}`,
 		"INSTR(a, ?) = 0",
 		"1",
 	},
-	[]string{
+	{
 		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"beginsWith", "filter":"1" }}]}`,
 		"a LIKE CONCAT(?, '%')",
 		"1",
 	},
-	[]string{
+	{
 		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"notBeginsWith", "filter":"1" }}]}`,
 		"a NOT LIKE CONCAT(?, '%')",
 		"1",
 	},
-	[]string{
+	{
 		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"endsWith", "filter":"1" }}]}`,
 		"a LIKE CONCAT('%', ?)",
 		"1",
 	},
-	[]string{
+	{
 		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"notEndsWith", "filter":"1" }}]}`,
 		"a NOT LIKE CONCAT('%', ?)",
 		"1",
 	},
-	[]string{
+	{
 		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"between", "filter":{ "start":1, "end":2 } }}]}`,
 		"( a > ? AND a < ? )",
 		"1,2",
 	},
-	[]string{
+	{
 		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"between", "filter":{ "start":1 } }}]}`,
 		"a > ?",
 		"1",
 	},
-	[]string{
+	{
 		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"between", "filter":{ "end":2 } }}]}`,
 		"a < ?",
 		"2",
 	},
-	[]string{
+	{
 		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"notBetween", "filter":{ "start":1, "end":2 } }}]}`,
 		"( a < ? OR a > ? )",
 		"1,2",
 	},
-	[]string{
+	{
 		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"notBetween", "filter":{ "start":1 } }}]}`,
 		"a < ?",
 		"1",
 	},
-	[]string{
+	{
 		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"notBetween", "filter":{ "end":2 } }}]}`,
 		"a > ?",
 		"2",
 	},
-	[]string{
+	{
 		aAndB,
 		"( a < ? AND b > ? )",
 		"1,abc",
 	},
-	[]string{
+	{
 		aOrB,
 		"( a < ? OR b > ? )",
 		"1,abc",
 	},
-	[]string{
+	{
 		`{ "glue":"AND", "rules":[` + aAndB + `,` + aOrB + `,{ "field":"c", "condition": { "type":"equal", "filter":3 } }]}`,
 		"( ( a < ? AND b > ? ) AND ( a < ? OR b > ? ) AND c = ? )",
 		"1,abc,1,abc,3",
 	},
-	[]string{
+	{
 		`{ "glue":"and", "rules":[{ "field": "a", "includes":[1,2,3]}]}`,
 		"a IN(?,?,?)",
 		"1,2,3",
 	},
-	[]string{
+	{
 		`{ "glue":"and", "rules":[{ "field": "a", "includes":["a","b","c"]}]}`,
 		"a IN(?,?,?)",
 		"a,b,c",
 	},
 }
 
-var psqlCases = [][]string {
-	[]string{
-		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"equal", "filter":1 }}]}`,
+var psqlCases = [][]string{
+	{
+		`{ "glue":"and", "rules":[{ "field": "json:cfg.a", "condition":{ "type":"equal", "filter":1 }}]}`,
 		"(cfg->'a')::text = $1",
 		"1",
 	},
-	[]string{
-		`{ "glue":"and", "rules":[{ "field": "b", "condition":{ "type":"notEqual", "filter":1 }}]}`,
+	{
+		`{ "glue":"and", "rules":[{ "field": "json:mytable.cfg.a", "condition":{ "type":"equal", "filter":1 }}]}`,
+		"(\"mytable\".cfg->'a')::text = $1",
+		"1",
+	},
+	{
+		`{ "glue":"and", "rules":[{ "field": "json:cfg.b:numeric", "condition":{ "type":"notEqual", "filter":1 }}]}`,
 		"(cfg->'b')::numeric <> $1",
 		"1",
 	},
-	[]string{
-		`{ "glue":"and", "rules":[{ "field": "b", "condition":{ "type":"less", "filter":1 }}]}`,
+	{
+		`{ "glue":"and", "rules":[{ "field": "json:cfg.b:numeric", "condition":{ "type":"less", "filter":1 }}]}`,
 		"(cfg->'b')::numeric < $1",
 		"1",
 	},
-	[]string{
-		`{ "glue":"and", "rules":[{ "field": "b", "condition":{ "type":"lessOrEqual", "filter":1 }}]}`,
+	{
+		`{ "glue":"and", "rules":[{ "field": "json:cfg.b:numeric", "condition":{ "type":"lessOrEqual", "filter":1 }}]}`,
 		"(cfg->'b')::numeric <= $1",
 		"1",
 	},
-	[]string{
-		`{ "glue":"and", "rules":[{ "field": "b", "condition":{ "type":"greater", "filter":1 }}]}`,
+	{
+		`{ "glue":"and", "rules":[{ "field": "json:cfg.b:numeric", "condition":{ "type":"greater", "filter":1 }}]}`,
 		"(cfg->'b')::numeric > $1",
 		"1",
 	},
-	[]string{
-		`{ "glue":"and", "rules":[{ "field": "b", "condition":{ "type":"greaterOrEqual", "filter":1 }}]}`,
+	{
+		`{ "glue":"and", "rules":[{ "field": "json:cfg.b:numeric", "condition":{ "type":"greaterOrEqual", "filter":1 }}]}`,
 		"(cfg->'b')::numeric >= $1",
 		"1",
 	},
-	[]string{
-		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"contains", "filter":1 }}]}`,
+	{
+		`{ "glue":"and", "rules":[{ "field": "json:cfg.a", "condition":{ "type":"contains", "filter":1 }}]}`,
 		"(cfg->'a')::text LIKE '\"%' || $1 || '%\"'",
 		"1",
 	},
-	[]string{
-		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"notContains", "filter":1 }}]}`,
+	{
+		`{ "glue":"and", "rules":[{ "field": "json:cfg.a", "condition":{ "type":"notContains", "filter":1 }}]}`,
 		"(cfg->'a')::text NOT LIKE '\"%' || $1 || '%\"'",
 		"1",
 	},
-	[]string{
-		`{ "glue":"and", "rules":[{ "field": "c", "condition":{ "type":"equal", "filter":"2006/01/02" }}]}`,
+	{
+		`{ "glue":"and", "rules":[{ "field": "json:cfg.c:date", "condition":{ "type":"equal", "filter":"2006/01/02" }}]}`,
 		"CAST((cfg->'c')::text AS DATE) = $1",
 		`2006/01/02`,
 	},
-	[]string{
-		`{ "glue":"and", "rules":[{ "field": "c", "condition":{ "type":"notBetween", "filter":{ "start":"2006/01/02", "end":"2006/01/9" } }}]}`,
+	{
+		`{ "glue":"and", "rules":[{ "field": "json:cfg.c:date", "condition":{ "type":"notBetween", "filter":{ "start":"2006/01/02", "end":"2006/01/9" } }}]}`,
 		"( CAST((cfg->'c')::text AS DATE) < $1 OR CAST((cfg->'c')::text AS DATE) > $2 )",
 		`2006/01/02,2006/01/9`,
 	},
@@ -236,19 +242,12 @@ func TestSQL(t *testing.T) {
 }
 
 func TestPSQL(t *testing.T) {
-	DB = DB_POSTGRESQL
 	queryConfig := SQLConfig{
-		Whitelist: map[string]bool{
-			"a": true,
-			"b": true,
-			"c": true,
-		},
-		DynamicFields: []DynamicField{
-			{"a", "text"},
-			{"b", "number"},
-			{"c", "date"},
-		},
-		DynamicConfigName: "cfg",
+		// Whitelist: map[string]bool{
+		// 	"a": true,
+		// 	"b": true,
+		// 	"c": true,
+		// }
 	}
 	for _, line := range psqlCases {
 		format, err := FromJSON([]byte(line[0]))
@@ -257,7 +256,7 @@ func TestPSQL(t *testing.T) {
 			continue
 		}
 
-		sql, vals, err := GetSQL(format, &queryConfig)
+		sql, vals, err := GetSQL(format, &queryConfig, &PostgreSQL{})
 		if err != nil {
 			t.Errorf("can't generate sql\nj: %s\n%f", line[0], err)
 			continue
@@ -278,7 +277,6 @@ func TestPSQL(t *testing.T) {
 			continue
 		}
 	}
-	DB = DB_MYSQL
 }
 
 func TestWhitelist(t *testing.T) {
@@ -293,6 +291,7 @@ func TestWhitelist(t *testing.T) {
 		t.Errorf("doesn't work without config")
 		return
 	}
+
 	_, _, err = GetSQL(format, &SQLConfig{})
 	if err != nil {
 		t.Errorf("doesn't work without whitelist")
@@ -312,6 +311,72 @@ func TestWhitelist(t *testing.T) {
 	}
 
 	_, _, err = GetSQL(format, &SQLConfig{Whitelist: map[string]bool{"b": true}})
+	if err == nil {
+		t.Errorf("doesn't return error when field is not allowed")
+		return
+	}
+}
+
+func TestWhitelistPG(t *testing.T) {
+	format, err := FromJSON([]byte(JSONaAndB))
+	if err != nil {
+		t.Errorf("can't parse json\nj: %s\n%f", aAndB, err)
+		return
+	}
+
+	_, _, err = GetSQL(format, nil, &PostgreSQL{})
+	if err != nil {
+		t.Errorf("doesn't work without config")
+		return
+	}
+
+	_, _, err = GetSQL(format, &SQLConfig{}, &PostgreSQL{})
+	if err != nil {
+		t.Errorf("doesn't work without whitelist")
+		return
+	}
+
+	_, _, err = GetSQL(format, &SQLConfig{
+		WhitelistFunc: func(name string) bool {
+			return strings.HasPrefix(name, "json:cfg.")
+		}})
+	if err != nil {
+		t.Errorf("doesn't work with fields allowed")
+		return
+	}
+
+	_, _, err = GetSQL(format, &SQLConfig{
+		WhitelistFunc: func(name string) bool {
+			return strings.HasPrefix(name, "json:cfg.a")
+		},
+		Whitelist: map[string]bool{"json:cfg.b": true},
+	})
+	if err != nil {
+		t.Errorf("doesn't work with fields allowed")
+		return
+	}
+
+	_, _, err = GetSQL(format, &SQLConfig{
+		Whitelist: map[string]bool{"json:cfg.a": true, "json:cfg.b": true},
+	})
+	if err != nil {
+		t.Errorf("doesn't work with fields allowed")
+		return
+	}
+
+	_, _, err = GetSQL(format, &SQLConfig{
+		Whitelist: map[string]bool{"json:cfg.b": true},
+	})
+	if err == nil {
+		t.Errorf("doesn't return error when field is not allowed")
+		return
+	}
+
+	_, _, err = GetSQL(format, &SQLConfig{
+		WhitelistFunc: func(name string) bool {
+			return strings.HasPrefix(name, "json:cfgx")
+		},
+	})
 	if err == nil {
 		t.Errorf("doesn't return error when field is not allowed")
 		return
