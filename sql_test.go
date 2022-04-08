@@ -171,6 +171,16 @@ var psqlCases = [][]string {
 		"(cfg->'a')::text NOT LIKE '\"%' || $1 || '%\"'",
 		"1",
 	},
+	[]string{
+		`{ "glue":"and", "rules":[{ "field": "c", "condition":{ "type":"equal", "filter":"2006/01/02" }}]}`,
+		"CAST((cfg->'c')::text AS DATE) = $1",
+		`2006/01/02`,
+	},
+	[]string{
+		`{ "glue":"and", "rules":[{ "field": "c", "condition":{ "type":"notBetween", "filter":{ "start":"2006/01/02", "end":"2006/01/9" } }}]}`,
+		"( CAST((cfg->'c')::text AS DATE) < $1 OR CAST((cfg->'c')::text AS DATE) > $2 )",
+		`2006/01/02,2006/01/9`,
+	},
 }
 
 func anyToStringArray(some []interface{}) (string, error) {
@@ -231,10 +241,12 @@ func TestPSQL(t *testing.T) {
 		Whitelist: map[string]bool{
 			"a": true,
 			"b": true,
+			"c": true,
 		},
 		DynamicFields: []DynamicField{
 			{"a", "text"},
 			{"b", "number"},
+			{"c", "date"},
 		},
 		DynamicConfigName: "cfg",
 	}
