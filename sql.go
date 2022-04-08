@@ -76,10 +76,18 @@ func GetSQL(data Filter, config *SQLConfig) (string, []interface{}, error) {
 				}
 				parts := strings.Split(data.Field, ".")
 				tp := GetJSONBType(f.Type)
-				if len(parts) == 1 {
-					data.Field = fmt.Sprintf("(%s->'%s')::%s", config.DynamicConfigName, parts[0], tp)
-				} else if len(parts) == 2 {
-					data.Field = fmt.Sprintf("(\"%s\".%s->'%s')::%s", parts[0], config.DynamicConfigName, parts[1], tp)
+				if tp == "date" {
+					if len(parts) == 1 {
+						data.Field = fmt.Sprintf("CAST((%s->'%s')::text AS DATE)", config.DynamicConfigName, parts[0])
+					} else if len(parts) == 2 {
+						data.Field = fmt.Sprintf("CAST((\"%s\".%s->'%s')::text AS DATE)", parts[0], config.DynamicConfigName, parts[1])
+					}
+				} else {
+					if len(parts) == 1 {
+						data.Field = fmt.Sprintf("(%s->'%s')::%s", config.DynamicConfigName, parts[0], tp)
+					} else if len(parts) == 2 {
+						data.Field = fmt.Sprintf("(\"%s\".%s->'%s')::%s", parts[0], config.DynamicConfigName, parts[1], tp)
+					}
 				}
 				isDynamicField = true
 			}
