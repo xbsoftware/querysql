@@ -130,6 +130,49 @@ var cases = [][]string{
 	},
 }
 
+var psqlCases = [][]string {
+	[]string{
+		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"equal", "filter":1 }}]}`,
+		"(cfg->'a')::text = $1",
+		"1",
+	},
+	[]string{
+		`{ "glue":"and", "rules":[{ "field": "b", "condition":{ "type":"notEqual", "filter":1 }}]}`,
+		"(cfg->'b')::numeric <> $1",
+		"1",
+	},
+	[]string{
+		`{ "glue":"and", "rules":[{ "field": "b", "condition":{ "type":"less", "filter":1 }}]}`,
+		"(cfg->'b')::numeric < $1",
+		"1",
+	},
+	[]string{
+		`{ "glue":"and", "rules":[{ "field": "b", "condition":{ "type":"lessOrEqual", "filter":1 }}]}`,
+		"(cfg->'b')::numeric <= $1",
+		"1",
+	},
+	[]string{
+		`{ "glue":"and", "rules":[{ "field": "b", "condition":{ "type":"greater", "filter":1 }}]}`,
+		"(cfg->'b')::numeric > $1",
+		"1",
+	},
+	[]string{
+		`{ "glue":"and", "rules":[{ "field": "b", "condition":{ "type":"greaterOrEqual", "filter":1 }}]}`,
+		"(cfg->'b')::numeric >= $1",
+		"1",
+	},
+	[]string{
+		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"contains", "filter":1 }}]}`,
+		"(cfg->'a')::text LIKE '\"%' || $1 || '%\"'",
+		"1",
+	},
+	[]string{
+		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"notContains", "filter":1 }}]}`,
+		"(cfg->'a')::text NOT LIKE '\"%' || $1 || '%\"'",
+		"1",
+	},
+}
+
 func anyToStringArray(some []interface{}) (string, error) {
 	out := make([]string, 0, len(some))
 	for _, x := range some {
@@ -180,6 +223,50 @@ func TestSQL(t *testing.T) {
 			continue
 		}
 	}
+}
+
+func TestPSQL(t *testing.T) {
+	DB = DB_POSTGRESQL
+	queryConfig := SQLConfig{
+		Whitelist: map[string]bool{
+			"a": true,
+			"b": true,
+		},
+		DynamicFields: []DynamicField{
+			{"a", "text"},
+			{"b", "number"},
+		},
+		DynamicConfigName: "cfg",
+	}
+	for _, line := range psqlCases {
+		format, err := FromJSON([]byte(line[0]))
+		if err != nil {
+			t.Errorf("can't parse json\nj: %s\n%f", line[0], err)
+			continue
+		}
+
+		sql, vals, err := GetSQL(format, &queryConfig)
+		if err != nil {
+			t.Errorf("can't generate sql\nj: %s\n%f", line[0], err)
+			continue
+		}
+		if sql != line[1] {
+			t.Errorf("wrong sql generated\nj: %s\ns: %s\nr: %s", line[0], line[1], sql)
+			continue
+		}
+
+		valsStr, err := anyToStringArray(vals)
+		if err != nil {
+			t.Errorf("can't convert parameters\nj: %s\n%f", line[0], err)
+			continue
+		}
+
+		if valsStr != line[2] {
+			t.Errorf("wrong sql generated\nj: %s\ns: %s\nr: %s", line[0], line[2], valsStr)
+			continue
+		}
+	}
+	DB = DB_MYSQL
 }
 
 func TestWhitelist(t *testing.T) {
