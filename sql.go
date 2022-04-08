@@ -33,8 +33,8 @@ type SQLConfig struct {
 }
 
 type DynamicField struct {
-	Key  string
-	Type string
+	Key  string `json:"key"`
+	Type string `json:"type"`
 }
 
 func FromJSON(text []byte) (Filter, error) {
@@ -71,12 +71,16 @@ func GetSQL(data Filter, config *SQLConfig) (string, []interface{}, error) {
 		if DB == DB_POSTGRESQL {
 			f := getDynamicField(config.DynamicFields, data.Field)
 			if f != nil {
-				parts := strings.Split(data.Field, ".")
 				if config.DynamicConfigName == "" {
 					return "", nil, fmt.Errorf("dynamic config name is empty")
 				}
+				parts := strings.Split(data.Field, ".")
 				tp := GetJSONBType(f.Type)
-				data.Field = fmt.Sprintf("(\"%s\".%s->'%s')::%s", parts[0], config.DynamicConfigName, parts[1], tp)
+				if len(parts) == 1 {
+					data.Field = fmt.Sprintf("(%s->'%s')::%s", config.DynamicConfigName, parts[0], tp)
+				} else if len(parts) == 2 {
+					data.Field = fmt.Sprintf("(\"%s\".%s->'%s')::%s", parts[0], config.DynamicConfigName, parts[1], tp)
+				}
 				isDynamicField = true
 			}
 		}
@@ -106,7 +110,7 @@ func GetSQL(data Filter, config *SQLConfig) (string, []interface{}, error) {
 		case "notContains":
 			switch DB {
 			case DB_MYSQL:
-				return fmt.Sprintf("INSTR(%s, ?) < 0", data.Field), values, nil
+				return fmt.Sprintf("INSTR(%s, ?) = 0", data.Field), values, nil
 			case DB_POSTGRESQL:
 				if isDynamicField {
 					return fmt.Sprintf("%s NOT LIKE '\"%%' ||  $  || '%%\"'", data.Field), values, nil
