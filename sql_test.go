@@ -134,57 +134,57 @@ var cases = [][]string{
 var psqlCases = [][]string{
 	{
 		`{ "glue":"and", "rules":[{ "field": "json:cfg.a", "condition":{ "type":"equal", "filter":1 }}]}`,
-		"(cfg->'a')::text = $1",
+		"(\"cfg\"->'a')::text = $1",
 		"1",
 	},
 	{
-		`{ "glue":"and", "rules":[{ "field": "json:mytable.cfg.a", "condition":{ "type":"equal", "filter":1 }}]}`,
-		"(\"mytable\".cfg->'a')::text = $1",
+		`{ "glue":"and", "rules":[{ "field": "mytable.json:cfg.a", "condition":{ "type":"equal", "filter":1 }}]}`,
+		"(\"mytable\".\"cfg\"->'a')::text = $1",
 		"1",
 	},
 	{
 		`{ "glue":"and", "rules":[{ "field": "json:cfg.b:numeric", "condition":{ "type":"notEqual", "filter":1 }}]}`,
-		"(cfg->'b')::numeric <> $1",
+		"(\"cfg\"->'b')::numeric <> $1",
 		"1",
 	},
 	{
 		`{ "glue":"and", "rules":[{ "field": "json:cfg.b:numeric", "condition":{ "type":"less", "filter":1 }}]}`,
-		"(cfg->'b')::numeric < $1",
+		"(\"cfg\"->'b')::numeric < $1",
 		"1",
 	},
 	{
 		`{ "glue":"and", "rules":[{ "field": "json:cfg.b:numeric", "condition":{ "type":"lessOrEqual", "filter":1 }}]}`,
-		"(cfg->'b')::numeric <= $1",
+		"(\"cfg\"->'b')::numeric <= $1",
 		"1",
 	},
 	{
 		`{ "glue":"and", "rules":[{ "field": "json:cfg.b:numeric", "condition":{ "type":"greater", "filter":1 }}]}`,
-		"(cfg->'b')::numeric > $1",
+		"(\"cfg\"->'b')::numeric > $1",
 		"1",
 	},
 	{
 		`{ "glue":"and", "rules":[{ "field": "json:cfg.b:numeric", "condition":{ "type":"greaterOrEqual", "filter":1 }}]}`,
-		"(cfg->'b')::numeric >= $1",
+		"(\"cfg\"->'b')::numeric >= $1",
 		"1",
 	},
 	{
 		`{ "glue":"and", "rules":[{ "field": "json:cfg.a", "condition":{ "type":"contains", "filter":1 }}]}`,
-		"(cfg->'a')::text LIKE '\"%' || $1 || '%\"'",
+		"(\"cfg\"->'a')::text LIKE '\"%' || $1 || '%\"'",
 		"1",
 	},
 	{
 		`{ "glue":"and", "rules":[{ "field": "json:cfg.a", "condition":{ "type":"notContains", "filter":1 }}]}`,
-		"(cfg->'a')::text NOT LIKE '\"%' || $1 || '%\"'",
+		"(\"cfg\"->'a')::text NOT LIKE '\"%' || $1 || '%\"'",
 		"1",
 	},
 	{
 		`{ "glue":"and", "rules":[{ "field": "json:cfg.c:date", "condition":{ "type":"equal", "filter":"2006/01/02" }}]}`,
-		"CAST((cfg->'c')::text AS DATE) = $1",
+		"CAST((\"cfg\"->'c')::text AS DATE) = $1",
 		`2006/01/02`,
 	},
 	{
 		`{ "glue":"and", "rules":[{ "field": "json:cfg.c:date", "condition":{ "type":"notBetween", "filter":{ "start":"2006/01/02", "end":"2006/01/9" } }}]}`,
-		"( CAST((cfg->'c')::text AS DATE) < $1 OR CAST((cfg->'c')::text AS DATE) > $2 )",
+		"( CAST((\"cfg\"->'c')::text AS DATE) < $1 OR CAST((\"cfg\"->'c')::text AS DATE) > $2 )",
 		`2006/01/02,2006/01/9`,
 	},
 }
