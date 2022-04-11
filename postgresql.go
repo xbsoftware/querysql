@@ -21,37 +21,44 @@ func (m *PostgreSQL) Mark() string {
 
 func (m *PostgreSQL) IsJSON(v string) (string, bool) {
 	//table.json:field.name:type
-	parts := strings.Split(v, ".")
-	offset := len(parts) - 2
-	if offset < 0 || !strings.HasPrefix(parts[0+offset], "json:") {
+	var table, field, name, tp string
+
+	parts := strings.SplitN(v, ".", 3)
+	if len(parts) == 2 && strings.HasPrefix(parts[0], "json:") {
+		// [0]:json:field, [1]:name:type
+		field = parts[0][5:]
+		i := strings.Index(parts[1], ":")
+		if i > 0 {
+			name = parts[1][:i]
+			tp = parts[1][i+1:]
+		} else {
+			name = parts[1]
+		}
+	} else if len(parts) == 3 && strings.HasPrefix(parts[1], "json:") {
+		// [0]:table, [1]:json:field, [2]:name:type
+		table = parts[0]
+		field = parts[1][5:]
+		i := strings.Index(parts[2], ":")
+		if i > 0 {
+			name = parts[2][:i]
+			tp = parts[2][i+1:]
+		} else {
+			name = parts[2]
+		}
+	} else {
 		return v, false
 	}
-
-	var table string
-	var tp string = "text"
-
-	if offset == 1 {
-		table = parts[0]
-	}
-
-	// json:field
-	field := parts[0+offset][5:]
-
-	// name:type
-	parts = strings.Split(parts[1+offset], ":")
-	if len(parts) == 2 {
-		tp = parts[1]
-	}
-	name := parts[0]
 
 	var s, e string
 	if tp == "date" {
 		s = "CAST("
 		e = " AS DATE)"
 		tp = "text"
+	} else if tp == "" {
+		tp = "text"
 	}
 
-	if table != "" {
+	if len(parts) == 3 {
 		name = fmt.Sprintf("%s(\"%s\".\"%s\"->'%s')::%s%s", s, table, field, name, tp, e)
 	} else {
 		name = fmt.Sprintf("%s(\"%s\"->'%s')::%s%s", s, field, name, tp, e)
