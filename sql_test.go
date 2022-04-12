@@ -13,120 +13,143 @@ var cOrC = `{ "glue":"or", "rules":[{ "field": "a", "condition":{ "type":"is nul
 var JSONaAndB = `{ "glue":"and", "rules":[{ "field": "json:cfg.a", "condition":{ "type":"less", "filter":1}}, { "field": "json:cfg.b", "condition":{ "type":"greater", "filter":"abc" }}]}`
 
 var cases = [][]string{
-	{`{}`, "", ""},
+	{`{}`, "", "", ""},
 	{
 		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"equal", "filter":1 }}]}`,
 		"a = ?",
+		"a = $1",
 		"1",
 	},
 	{
 		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"notEqual", "filter":1 }}]}`,
 		"a <> ?",
+		"a <> $1",
 		"1",
 	},
 	{
 		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"less", "filter":1 }}]}`,
 		"a < ?",
+		"a < $1",
 		"1",
 	},
 	{
 		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"lessOrEqual", "filter":1 }}]}`,
 		"a <= ?",
+		"a <= $1",
 		"1",
 	},
 	{
 		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"greater", "filter":1 }}]}`,
 		"a > ?",
+		"a > $1",
 		"1",
 	},
 	{
 		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"greaterOrEqual", "filter":1 }}]}`,
 		"a >= ?",
+		"a >= $1",
 		"1",
 	},
 	{
 		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"contains", "filter":1 }}]}`,
 		"INSTR(a, ?) > 0",
+		"a LIKE '%' || $1 || '%'",
 		"1",
 	},
 	{
 		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"notContains", "filter":1 }}]}`,
 		"INSTR(a, ?) = 0",
+		"a NOT LIKE '%' || $1 || '%'",
 		"1",
 	},
 	{
 		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"beginsWith", "filter":"1" }}]}`,
 		"a LIKE CONCAT(?, '%')",
+		"a LIKE $1 || '%'",
 		"1",
 	},
 	{
 		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"notBeginsWith", "filter":"1" }}]}`,
 		"a NOT LIKE CONCAT(?, '%')",
+		"a NOT LIKE $1 || '%'",
 		"1",
 	},
 	{
 		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"endsWith", "filter":"1" }}]}`,
 		"a LIKE CONCAT('%', ?)",
+		"a LIKE '%' || $1",
 		"1",
 	},
 	{
 		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"notEndsWith", "filter":"1" }}]}`,
 		"a NOT LIKE CONCAT('%', ?)",
+		"a NOT LIKE '%' || $1",
 		"1",
 	},
 	{
 		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"between", "filter":{ "start":1, "end":2 } }}]}`,
 		"( a > ? AND a < ? )",
+		"( a > $1 AND a < $2 )",
 		"1,2",
 	},
 	{
 		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"between", "filter":{ "start":1 } }}]}`,
 		"a > ?",
+		"a > $1",
 		"1",
 	},
 	{
 		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"between", "filter":{ "end":2 } }}]}`,
 		"a < ?",
+		"a < $1",
 		"2",
 	},
 	{
 		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"notBetween", "filter":{ "start":1, "end":2 } }}]}`,
 		"( a < ? OR a > ? )",
+		"( a < $1 OR a > $2 )",
 		"1,2",
 	},
 	{
 		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"notBetween", "filter":{ "start":1 } }}]}`,
 		"a < ?",
+		"a < $1",
 		"1",
 	},
 	{
 		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"notBetween", "filter":{ "end":2 } }}]}`,
 		"a > ?",
+		"a > $1",
 		"2",
 	},
 	{
 		aAndB,
 		"( a < ? AND b > ? )",
+		"( a < $1 AND b > $2 )",
 		"1,abc",
 	},
 	{
 		aOrB,
 		"( a < ? OR b > ? )",
+		"( a < $1 OR b > $2 )",
 		"1,abc",
 	},
 	{
 		`{ "glue":"AND", "rules":[` + aAndB + `,` + aOrB + `,{ "field":"c", "condition": { "type":"equal", "filter":3 } }]}`,
 		"( ( a < ? AND b > ? ) AND ( a < ? OR b > ? ) AND c = ? )",
+		"( ( a < $1 AND b > $2 ) AND ( a < $3 OR b > $4 ) AND c = $5 )",
 		"1,abc,1,abc,3",
 	},
 	{
 		`{ "glue":"and", "rules":[{ "field": "a", "includes":[1,2,3]}]}`,
 		"a IN(?,?,?)",
+		"a IN($1,$2,$3)",
 		"1,2,3",
 	},
 	{
 		`{ "glue":"and", "rules":[{ "field": "a", "includes":["a","b","c"]}]}`,
 		"a IN(?,?,?)",
+		"a IN($1,$2,$3)",
 		"a,b,c",
 	},
 }
@@ -234,14 +257,52 @@ func TestSQL(t *testing.T) {
 			continue
 		}
 
-		if valsStr != line[2] {
-			t.Errorf("wrong sql generated\nj: %s\ns: %s\nr: %s", line[0], line[2], valsStr)
+		if valsStr != line[3] {
+			t.Errorf("wrong sql generated (values)\nj: %s\ns: %s\nr: %s", line[0], line[3], valsStr)
 			continue
 		}
 	}
 }
 
-func TestPSQL(t *testing.T) {
+func TestPostgre(t *testing.T) {
+	queryConfig := SQLConfig{
+		// Whitelist: map[string]bool{
+		// 	"a": true,
+		// 	"b": true,
+		// 	"c": true,
+		// }
+	}
+	for _, line := range cases {
+		format, err := FromJSON([]byte(line[0]))
+		if err != nil {
+			t.Errorf("can't parse json\nj: %s\n%f", line[0], err)
+			continue
+		}
+
+		sql, vals, err := GetSQL(format, &queryConfig, &PostgreSQL{})
+		if err != nil {
+			t.Errorf("can't generate sql\nj: %s\n%f", line[0], err)
+			continue
+		}
+		if sql != line[2] {
+			t.Errorf("wrong sql generated\nj: %s\ns: %s\nr: %s", line[0], line[2], sql)
+			continue
+		}
+
+		valsStr, err := anyToStringArray(vals)
+		if err != nil {
+			t.Errorf("can't convert parameters\nj: %s\n%f", line[0], err)
+			continue
+		}
+
+		if valsStr != line[3] {
+			t.Errorf("wrong sql generated\nj: %s\ns: %s\nr: %s", line[0], line[3], valsStr)
+			continue
+		}
+	}
+}
+
+func TestPostgreJSON(t *testing.T) {
 	queryConfig := SQLConfig{
 		// Whitelist: map[string]bool{
 		// 	"a": true,

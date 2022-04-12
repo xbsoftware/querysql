@@ -21,23 +21,28 @@ func (m *PostgreSQL) Mark() string {
 
 func (m *PostgreSQL) IsJSON(v string) (string, bool) {
 	//table.json:field.name:type
-	dot := strings.Index(v, ".")
-	if (dot == -1 && v[:5] != "json:") || v[dot+1:dot+6] != "json:" {
-		return v, false
+	fieldOnly := strings.HasPrefix(v, "json:")
+	var dot int
+	if !fieldOnly {
+		dot = strings.Index(v, ".")
+		if dot == -1 || !strings.HasPrefix(v[dot+1:], "json:") {
+			return v, false
+		}
 	}
 
 	// separate table and field
 	table := ""
 	field := v
-	if dot != -1 {
+	if !fieldOnly {
 		table = v[:dot]
 		field = v[dot+1:]
 	}
 
 	// separate field name and meta info
 	meta := strings.Split(field, ":")
-	name := meta[1]
-	tp := "text"
+	name := strings.Split(meta[1], ".")
+
+	var tp string
 	if len(meta) == 3 {
 		tp = meta[2]
 	}
@@ -52,11 +57,9 @@ func (m *PostgreSQL) IsJSON(v string) (string, bool) {
 	}
 
 	if table != "" {
-		name = fmt.Sprintf("%s(\"%s\".\"%s\"->'%s')::%s%s", s, table, field, name, tp, e)
-	} else {
-		name = fmt.Sprintf("%s(\"%s\"->'%s')::%s%s", s, field, name, tp, e)
+		return fmt.Sprintf("%s(\"%s\".\"%s\"->'%s')::%s%s", s, table, name[0], name[1], tp, e), true
 	}
-	return name, true
+	return fmt.Sprintf("%s(\"%s\"->'%s')::%s%s", s, name[0], name[1], tp, e), true
 }
 
 func (m *PostgreSQL) Contains(v string, isJSON bool) string {
@@ -77,9 +80,9 @@ func (m *PostgreSQL) NotContains(v string, isJSON bool) string {
 func (m *PostgreSQL) BeginsWith(v string, isJSON bool) string {
 	var search string
 	if isJSON {
-		search = "'\"' ||  " + m.Mark() + "  || '%'"
+		search = "'\"' || " + m.Mark() + " || '%'"
 	} else {
-		search = m.Mark() + "  || '%'"
+		search = m.Mark() + " || '%'"
 	}
 	return fmt.Sprintf("%s LIKE %s", v, search)
 }
@@ -87,9 +90,9 @@ func (m *PostgreSQL) BeginsWith(v string, isJSON bool) string {
 func (m *PostgreSQL) NotBeginsWith(v string, isJSON bool) string {
 	var search string
 	if isJSON {
-		search = "'\"' ||  " + m.Mark() + "  || '%'"
+		search = "'\"' || " + m.Mark() + " || '%'"
 	} else {
-		search = m.Mark() + "  || '%'"
+		search = m.Mark() + " || '%'"
 	}
 	return fmt.Sprintf("%s NOT LIKE %s", v, search)
 }
@@ -97,9 +100,9 @@ func (m *PostgreSQL) NotBeginsWith(v string, isJSON bool) string {
 func (m *PostgreSQL) EndsWith(v string, isJSON bool) string {
 	var search string
 	if isJSON {
-		search = "'%' ||  " + m.Mark() + "  || '\"'"
+		search = "'%' || " + m.Mark() + " || '\"'"
 	} else {
-		search = "'%' ||  " + m.Mark() + " "
+		search = "'%' || " + m.Mark()
 	}
 	return fmt.Sprintf("%s LIKE %s", v, search)
 }
@@ -107,9 +110,9 @@ func (m *PostgreSQL) EndsWith(v string, isJSON bool) string {
 func (m *PostgreSQL) NotEndsWith(v string, isJSON bool) string {
 	var search string
 	if isJSON {
-		search = "'%' ||  " + m.Mark() + " || '\"'"
+		search = "'%' || " + m.Mark() + " || '\"'"
 	} else {
-		search = "'%' ||  " + m.Mark() + " "
+		search = "'%' || " + m.Mark()
 	}
 	return fmt.Sprintf("%s NOT LIKE %s", v, search)
 }
