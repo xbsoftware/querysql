@@ -1,14 +1,18 @@
 package querysql
 
 type Condition struct {
-	Rule  string `json:"type"`
+	Rule  string      `json:"type"`
 	Value interface{} `json:"filter"`
 }
 
 func (c *Condition) getValues() []interface{} {
-	valueMap, ok := c.Value.(map[string]interface{})
+	return getValues(c.Value)
+}
+
+func getValues(v interface{}) []interface{} {
+	valueMap, ok := v.(map[string]interface{})
 	if !ok {
-		return []interface{}{c.Value}
+		return []interface{}{v}
 	}
 
 	return []interface{}{valueMap["start"], valueMap["end"]}

@@ -1,13 +1,14 @@
 package querysql
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
 	"testing"
 )
 
-var aAndB = `{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"less", "filter":1}}, { "field": "b", "condition":{ "type":"greater", "filter":"abc" }}]}`
+var aAndB = `{ "glue":"and", "rules":[{ "field": "a", "alias": "a", "condition":{ "type":"less", "filter":1}}, { "field": "b", "alias": "b", "condition":{ "type":"greater", "filter":"abc" }}]}`
 var aOrB = `{ "glue":"or", "rules":[{ "field": "a", "condition":{ "type":"less", "filter":1}}, { "field": "b", "condition":{ "type":"greater", "filter":"abc" }}]}`
 var cOrC = `{ "glue":"or", "rules":[{ "field": "a", "condition":{ "type":"is null" }}, { "field": "b", "condition":{ "type":"range100", "filter":500 }}]}`
 var JSONaAndB = `{ "glue":"and", "rules":[{ "field": "json:cfg.a", "condition":{ "type":"less", "filter":1}}, { "field": "json:cfg.b", "condition":{ "type":"greater", "filter":"abc" }}]}`
@@ -212,6 +213,55 @@ var psqlCases = [][]string{
 	},
 }
 
+var casesWithAliases = [][]string{
+	{
+		`{ "glue":"and", "rules":[{ "field": "a", "alias": "userId", "condition":{ "type":"equal", "filter":1 }}]}`,
+		"a = ?",
+		"a = $1",
+		"3",
+		`{ "userId": "3" }`, // aliases
+	},
+	{
+		`{ "glue":"and", "rules":[{ "field": "a", "alias": "userId", "condition":{ "type":"equal", "filter":1 }}]}`,
+		"a = ?",
+		"a = $1",
+		"1",
+		`{}`, // aliases
+	},
+	{
+		`{ "glue":"and", "rules":[{ "field": "a", "alias": "userId", "condition":{ "type":"notEqual", "filter":1 }}]}`,
+		"a <> ?",
+		"a <> $1",
+		"3",
+		`{ "userId": 3 }`, // aliases
+	},
+	{
+		aAndB,
+		"( a < ? AND b > ? )",
+		"( a < $1 AND b > $2 )",
+		"4,def",
+		// aliases
+		`{ 
+			"a": 4,
+			"b": "def"
+		 }`,
+	},
+	{
+		`{ "glue":"and", "rules":[{ "field": "a", "alias": "ids", "includes":[1,2,3]}]}`,
+		"a IN(?,?,?)",
+		"a IN($1,$2,$3)",
+		"3,4,5",
+		`{ "ids": [3,4,5] }`, // aliases
+	},
+	{
+		`{ "glue":"and", "rules":[{ "field": "a", "alias": "ids", "includes":["a","b","c"]}]}`,
+		"a IN(?,?,?)",
+		"a IN($1,$2,$3)",
+		"c,d,e",
+		`{ "ids": ["c","d","e"] }`, // aliases
+	},
+}
+
 func anyToStringArray(some []interface{}) (string, error) {
 	out := make([]string, 0, len(some))
 	for _, x := range some {
@@ -241,7 +291,7 @@ func TestSQL(t *testing.T) {
 			continue
 		}
 
-		sql, vals, err := GetSQL(format, nil)
+		sql, vals, err := GetSQL(format, nil, nil)
 		if err != nil {
 			t.Errorf("can't generate sql\nj: %s\n%f", line[0], err)
 			continue
@@ -279,7 +329,7 @@ func TestPostgre(t *testing.T) {
 			continue
 		}
 
-		sql, vals, err := GetSQL(format, &queryConfig, &PostgreSQL{})
+		sql, vals, err := GetSQL(format, nil, &queryConfig, &PostgreSQL{})
 		if err != nil {
 			t.Errorf("can't generate sql\nj: %s\n%f", line[0], err)
 			continue
@@ -317,7 +367,7 @@ func TestPostgreJSON(t *testing.T) {
 			continue
 		}
 
-		sql, vals, err := GetSQL(format, &queryConfig, &PostgreSQL{})
+		sql, vals, err := GetSQL(format, nil, &queryConfig, &PostgreSQL{})
 		if err != nil {
 			t.Errorf("can't generate sql\nj: %s\n%f", line[0], err)
 			continue
@@ -347,31 +397,31 @@ func TestWhitelist(t *testing.T) {
 		return
 	}
 
-	_, _, err = GetSQL(format, nil)
+	_, _, err = GetSQL(format, nil, nil)
 	if err != nil {
 		t.Errorf("doesn't work without config")
 		return
 	}
 
-	_, _, err = GetSQL(format, &SQLConfig{})
+	_, _, err = GetSQL(format, nil, &SQLConfig{})
 	if err != nil {
 		t.Errorf("doesn't work without whitelist")
 		return
 	}
 
-	_, _, err = GetSQL(format, &SQLConfig{Whitelist: map[string]bool{"a": true, "b": true}})
+	_, _, err = GetSQL(format, nil, &SQLConfig{Whitelist: map[string]bool{"a": true, "b": true}})
 	if err != nil {
 		t.Errorf("doesn't work with fields allowed")
 		return
 	}
 
-	_, _, err = GetSQL(format, &SQLConfig{Whitelist: map[string]bool{"a": true}})
+	_, _, err = GetSQL(format, nil, &SQLConfig{Whitelist: map[string]bool{"a": true}})
 	if err == nil {
 		t.Errorf("doesn't return error when field is not allowed")
 		return
 	}
 
-	_, _, err = GetSQL(format, &SQLConfig{Whitelist: map[string]bool{"b": true}})
+	_, _, err = GetSQL(format, nil, &SQLConfig{Whitelist: map[string]bool{"b": true}})
 	if err == nil {
 		t.Errorf("doesn't return error when field is not allowed")
 		return
@@ -385,19 +435,19 @@ func TestWhitelistPG(t *testing.T) {
 		return
 	}
 
-	_, _, err = GetSQL(format, nil, &PostgreSQL{})
+	_, _, err = GetSQL(format, nil, nil, &PostgreSQL{})
 	if err != nil {
 		t.Errorf("doesn't work without config")
 		return
 	}
 
-	_, _, err = GetSQL(format, &SQLConfig{}, &PostgreSQL{})
+	_, _, err = GetSQL(format, nil, &SQLConfig{}, &PostgreSQL{})
 	if err != nil {
 		t.Errorf("doesn't work without whitelist")
 		return
 	}
 
-	_, _, err = GetSQL(format, &SQLConfig{
+	_, _, err = GetSQL(format, nil, &SQLConfig{
 		WhitelistFunc: func(name string) bool {
 			return strings.HasPrefix(name, "json:cfg.")
 		}})
@@ -406,7 +456,7 @@ func TestWhitelistPG(t *testing.T) {
 		return
 	}
 
-	_, _, err = GetSQL(format, &SQLConfig{
+	_, _, err = GetSQL(format, nil, &SQLConfig{
 		WhitelistFunc: func(name string) bool {
 			return strings.HasPrefix(name, "json:cfg.a")
 		},
@@ -417,7 +467,7 @@ func TestWhitelistPG(t *testing.T) {
 		return
 	}
 
-	_, _, err = GetSQL(format, &SQLConfig{
+	_, _, err = GetSQL(format, nil, &SQLConfig{
 		Whitelist: map[string]bool{"json:cfg.a": true, "json:cfg.b": true},
 	})
 	if err != nil {
@@ -425,7 +475,7 @@ func TestWhitelistPG(t *testing.T) {
 		return
 	}
 
-	_, _, err = GetSQL(format, &SQLConfig{
+	_, _, err = GetSQL(format, nil, &SQLConfig{
 		Whitelist: map[string]bool{"json:cfg.b": true},
 	})
 	if err == nil {
@@ -433,7 +483,7 @@ func TestWhitelistPG(t *testing.T) {
 		return
 	}
 
-	_, _, err = GetSQL(format, &SQLConfig{
+	_, _, err = GetSQL(format, nil, &SQLConfig{
 		WhitelistFunc: func(name string) bool {
 			return strings.HasPrefix(name, "json:cfgx")
 		},
@@ -451,7 +501,7 @@ func TestCustomOperation(t *testing.T) {
 		return
 	}
 
-	sql, vals, err := GetSQL(format, &SQLConfig{
+	sql, vals, err := GetSQL(format, nil, &SQLConfig{
 		Operations: map[string]CustomOperation{
 			"is null": func(n string, r string, values []interface{}) (string, []interface{}, error) {
 				return fmt.Sprintf("%s IS NULL", n), NoValues, nil
@@ -484,5 +534,43 @@ func TestCustomOperation(t *testing.T) {
 	if valsStr != check {
 		t.Errorf("wrong sql generated\nj: %s\ns: %s\nr: %s", cOrC, check, valsStr)
 		return
+	}
+}
+
+func TestAliases(t *testing.T) {
+	for _, line := range casesWithAliases {
+		format, err := FromJSON([]byte(line[0]))
+		if err != nil {
+			t.Errorf("can't parse json\nj: %s\n%f", line[0], err)
+			continue
+		}
+
+		aliases := make(map[string]interface{})
+		err = json.Unmarshal([]byte(line[4]), &aliases)
+		if err != nil {
+			t.Errorf("can't parse json aliases\nj: %s\n%f", line[4], err)
+			continue
+		}
+
+		sql, vals, err := GetSQL(format, aliases, nil)
+		if err != nil {
+			t.Errorf("can't generate sql\nj: %s\n%f", line[0], err)
+			continue
+		}
+		if sql != line[1] {
+			t.Errorf("wrong sql generated\nj: %s\ns: %s\nr: %s", line[0], line[1], sql)
+			continue
+		}
+
+		valsStr, err := anyToStringArray(vals)
+		if err != nil {
+			t.Errorf("can't convert parameters\nj: %s\n%f", line[0], err)
+			continue
+		}
+
+		if valsStr != line[3] {
+			t.Errorf("wrong sql generated (values)\nj: %s\ns: %s\nr: %s", line[0], line[3], valsStr)
+			continue
+		}
 	}
 }
