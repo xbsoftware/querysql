@@ -71,3 +71,30 @@ For those operations, both start and end values can be provided
 ```
 
 if only *start* or *end* provided, the operation will change to *less* or *greater* automatically
+
+
+### aliases
+
+The rule can has alias value. This means that the value of the rule will be replaced by the alias value
+
+```json
+{
+    "field":"age",
+    "alias": "userId",
+    "condition":{
+      "type": "between",
+      "filter": { "start": 10, "end": 99 }
+    } 
+  }
+```
+
+The **alias:value** hash is passed with the filter config
+
+```json
+{
+  "userId": 3,
+  "ids": [1, 2, 3]
+}
+```
+
+This feature allows to reuse a filter config as templates and replace the values of aliases with any others

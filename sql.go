@@ -23,6 +23,7 @@ type Filter struct {
 	Field     string        `json:"field"`
 	Condition Condition     `json:"condition"`
 	Includes  []interface{} `json:"includes"`
+	Alias     string        `json:"alias"`
 	Kids      []Filter      `json:"rules"`
 }
 
@@ -54,7 +55,7 @@ func inSQL(field string, data []interface{}, db DBDriver) (string, []interface{}
 	return sql, data, nil
 }
 
-func GetSQL(data Filter, config *SQLConfig, dbArr ...DBDriver) (string, []interface{}, error) {
+func GetSQL(data Filter, aliases map[string]interface{}, config *SQLConfig, dbArr ...DBDriver) (string, []interface{}, error) {
 	var db DBDriver
 	if len(dbArr) > 0 {
 		db = dbArr[0]
@@ -73,11 +74,33 @@ func GetSQL(data Filter, config *SQLConfig, dbArr ...DBDriver) (string, []interf
 
 		name, isDynamicField := db.IsJSON(data.Field)
 
-		if len(data.Includes) > 0 {
-			return inSQL(name, data.Includes, db)
+		var values []interface{}
+		var includes bool
+		if data.Alias != "" && len(aliases) > 0 {
+			aliasValue, ok := aliases[data.Alias]
+			if ok {
+				// get alias values
+				values, includes = aliasValue.([]interface{})
+				if !includes {
+					values = getValues(aliasValue)
+				}
+			}
 		}
 
-		values := data.Condition.getValues()
+		if values == nil {
+			// get filter values
+			if len(data.Includes) > 0 {
+				includes = true
+				values = data.Includes
+			} else {
+				values = data.Condition.getValues()
+			}
+		}
+
+		if includes {
+			return inSQL(name, values, db)
+		}
+
 		switch data.Condition.Rule {
 		case "":
 			return "", NoValues, nil
@@ -145,7 +168,7 @@ func GetSQL(data Filter, config *SQLConfig, dbArr ...DBDriver) (string, []interf
 	values := make([]interface{}, 0)
 
 	for _, r := range data.Kids {
-		subSql, subValues, err := GetSQL(r, config, db)
+		subSql, subValues, err := GetSQL(r, aliases, config, db)
 		if err != nil {
 			return "", nil, err
 		}
