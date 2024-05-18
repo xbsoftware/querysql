@@ -7,117 +7,117 @@ import (
 	"testing"
 )
 
-var aAndB = `{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"less", "filter":1}}, { "field": "b", "condition":{ "type":"greater", "filter":"abc" }}]}`
-var aOrB = `{ "glue":"or", "rules":[{ "field": "a", "condition":{ "type":"less", "filter":1}}, { "field": "b", "condition":{ "type":"greater", "filter":"abc" }}]}`
-var cOrC = `{ "glue":"or", "rules":[{ "field": "a", "condition":{ "type":"is null" }}, { "field": "b", "condition":{ "type":"range100", "filter":500 }}]}`
-var JSONaAndB = `{ "glue":"and", "rules":[{ "field": "json:cfg.a", "condition":{ "type":"less", "filter":1}}, { "field": "json:cfg.b", "condition":{ "type":"greater", "filter":"abc" }}]}`
+var aAndB = `{ "glue":"and", "rules":[{ "field": "a", "filter":"less", "value":1}, { "field": "b", "filter":"greater", "value":"abc" }]}`
+var aOrB = `{ "glue":"or", "rules":[{ "field": "a", "filter":"less", "value":1}, { "field": "b", "filter":"greater", "value":"abc" }]}`
+var cOrC = `{ "glue":"or", "rules":[{ "field": "a", "filter":"is null" }, { "field": "b", "filter":"range100", "value":500 }]}`
+var JSONaAndB = `{ "glue":"and", "rules":[{ "field": "json:cfg.a", "filter":"less", "value":1}, { "field": "json:cfg.b", "filter":"greater", "value":"abc" }]}`
 
 var cases = [][]string{
 	{`{}`, "", "", ""},
 	{
-		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"equal", "filter":1 }}]}`,
+		`{ "glue":"and", "rules":[{ "field": "a", "filter":"equal", "value":1 }]}`,
 		"a = ?",
 		"a = $1",
 		"1",
 	},
 	{
-		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"notEqual", "filter":1 }}]}`,
+		`{ "glue":"and", "rules":[{ "field": "a", "filter":"notEqual", "value":1 }]}`,
 		"a <> ?",
 		"a <> $1",
 		"1",
 	},
 	{
-		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"less", "filter":1 }}]}`,
+		`{ "glue":"and", "rules":[{ "field": "a", "filter":"less", "value":1 }]}`,
 		"a < ?",
 		"a < $1",
 		"1",
 	},
 	{
-		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"lessOrEqual", "filter":1 }}]}`,
+		`{ "glue":"and", "rules":[{ "field": "a", "filter":"lessOrEqual", "value":1 }]}`,
 		"a <= ?",
 		"a <= $1",
 		"1",
 	},
 	{
-		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"greater", "filter":1 }}]}`,
+		`{ "glue":"and", "rules":[{ "field": "a", "filter":"greater", "value":1 }]}`,
 		"a > ?",
 		"a > $1",
 		"1",
 	},
 	{
-		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"greaterOrEqual", "filter":1 }}]}`,
+		`{ "glue":"and", "rules":[{ "field": "a", "filter":"greaterOrEqual", "value":1 }]}`,
 		"a >= ?",
 		"a >= $1",
 		"1",
 	},
 	{
-		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"contains", "filter":1 }}]}`,
+		`{ "glue":"and", "rules":[{ "field": "a", "filter":"contains", "value":1 }]}`,
 		"INSTR(a, ?) > 0",
 		"a LIKE '%' || $1 || '%'",
 		"1",
 	},
 	{
-		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"notContains", "filter":1 }}]}`,
+		`{ "glue":"and", "rules":[{ "field": "a", "filter":"notContains", "value":1 }]}`,
 		"INSTR(a, ?) = 0",
 		"a NOT LIKE '%' || $1 || '%'",
 		"1",
 	},
 	{
-		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"beginsWith", "filter":"1" }}]}`,
+		`{ "glue":"and", "rules":[{ "field": "a", "filter":"beginsWith", "value":"1" }]}`,
 		"a LIKE CONCAT(?, '%')",
 		"a LIKE $1 || '%'",
 		"1",
 	},
 	{
-		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"notBeginsWith", "filter":"1" }}]}`,
+		`{ "glue":"and", "rules":[{ "field": "a", "filter":"notBeginsWith", "value":"1" }]}`,
 		"a NOT LIKE CONCAT(?, '%')",
 		"a NOT LIKE $1 || '%'",
 		"1",
 	},
 	{
-		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"endsWith", "filter":"1" }}]}`,
+		`{ "glue":"and", "rules":[{ "field": "a", "filter":"endsWith", "value":"1" }]}`,
 		"a LIKE CONCAT('%', ?)",
 		"a LIKE '%' || $1",
 		"1",
 	},
 	{
-		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"notEndsWith", "filter":"1" }}]}`,
+		`{ "glue":"and", "rules":[{ "field": "a", "filter":"notEndsWith", "value":"1" }]}`,
 		"a NOT LIKE CONCAT('%', ?)",
 		"a NOT LIKE '%' || $1",
 		"1",
 	},
 	{
-		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"between", "filter":{ "start":1, "end":2 } }}]}`,
+		`{ "glue":"and", "rules":[{ "field": "a", "filter":"between", "value":{ "start":1, "end":2 } }]}`,
 		"( a > ? AND a < ? )",
 		"( a > $1 AND a < $2 )",
 		"1,2",
 	},
 	{
-		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"between", "filter":{ "start":1 } }}]}`,
+		`{ "glue":"and", "rules":[{ "field": "a", "filter":"between", "value":{ "start":1 } }]}`,
 		"a > ?",
 		"a > $1",
 		"1",
 	},
 	{
-		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"between", "filter":{ "end":2 } }}]}`,
+		`{ "glue":"and", "rules":[{ "field": "a", "filter":"between", "value":{ "end":2 } }]}`,
 		"a < ?",
 		"a < $1",
 		"2",
 	},
 	{
-		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"notBetween", "filter":{ "start":1, "end":2 } }}]}`,
+		`{ "glue":"and", "rules":[{ "field": "a", "filter":"notBetween", "value":{ "start":1, "end":2 } }]}`,
 		"( a < ? OR a > ? )",
 		"( a < $1 OR a > $2 )",
 		"1,2",
 	},
 	{
-		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"notBetween", "filter":{ "start":1 } }}]}`,
+		`{ "glue":"and", "rules":[{ "field": "a", "filter":"notBetween", "value":{ "start":1 } }]}`,
 		"a < ?",
 		"a < $1",
 		"1",
 	},
 	{
-		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"notBetween", "filter":{ "end":2 } }}]}`,
+		`{ "glue":"and", "rules":[{ "field": "a", "filter":"notBetween", "value":{ "end":2 } }]}`,
 		"a > ?",
 		"a > $1",
 		"2",
@@ -135,7 +135,7 @@ var cases = [][]string{
 		"1,abc",
 	},
 	{
-		`{ "glue":"AND", "rules":[` + aAndB + `,` + aOrB + `,{ "field":"c", "condition": { "type":"equal", "filter":3 } }]}`,
+		`{ "glue":"AND", "rules":[` + aAndB + `,` + aOrB + `,{ "field":"c", "filter":"equal", "value":3 }]}`,
 		"( ( a < ? AND b > ? ) AND ( a < ? OR b > ? ) AND c = ? )",
 		"( ( a < $1 AND b > $2 ) AND ( a < $3 OR b > $4 ) AND c = $5 )",
 		"1,abc,1,abc,3",
@@ -156,57 +156,57 @@ var cases = [][]string{
 
 var psqlCases = [][]string{
 	{
-		`{ "glue":"and", "rules":[{ "field": "json:cfg.a", "condition":{ "type":"equal", "filter":1 }}]}`,
+		`{ "glue":"and", "rules":[{ "field": "json:cfg.a", "filter":"equal", "value":1 }]}`,
 		"(\"cfg\"->'a')::text = $1",
 		"1",
 	},
 	{
-		`{ "glue":"and", "rules":[{ "field": "mytable.json:cfg.a", "condition":{ "type":"equal", "filter":1 }}]}`,
+		`{ "glue":"and", "rules":[{ "field": "mytable.json:cfg.a", "filter":"equal", "value":1 }]}`,
 		"(\"mytable\".\"cfg\"->'a')::text = $1",
 		"1",
 	},
 	{
-		`{ "glue":"and", "rules":[{ "field": "json:cfg.b:numeric", "condition":{ "type":"notEqual", "filter":1 }}]}`,
+		`{ "glue":"and", "rules":[{ "field": "json:cfg.b:numeric", "filter":"notEqual", "value":1 }]}`,
 		"(\"cfg\"->'b')::numeric <> $1",
 		"1",
 	},
 	{
-		`{ "glue":"and", "rules":[{ "field": "json:cfg.b:numeric", "condition":{ "type":"less", "filter":1 }}]}`,
+		`{ "glue":"and", "rules":[{ "field": "json:cfg.b:numeric", "filter":"less", "value":1 }]}`,
 		"(\"cfg\"->'b')::numeric < $1",
 		"1",
 	},
 	{
-		`{ "glue":"and", "rules":[{ "field": "json:cfg.b:numeric", "condition":{ "type":"lessOrEqual", "filter":1 }}]}`,
+		`{ "glue":"and", "rules":[{ "field": "json:cfg.b:numeric", "filter":"lessOrEqual", "value":1 }]}`,
 		"(\"cfg\"->'b')::numeric <= $1",
 		"1",
 	},
 	{
-		`{ "glue":"and", "rules":[{ "field": "json:cfg.b:numeric", "condition":{ "type":"greater", "filter":1 }}]}`,
+		`{ "glue":"and", "rules":[{ "field": "json:cfg.b:numeric", "filter":"greater", "value":1 }]}`,
 		"(\"cfg\"->'b')::numeric > $1",
 		"1",
 	},
 	{
-		`{ "glue":"and", "rules":[{ "field": "json:cfg.b:numeric", "condition":{ "type":"greaterOrEqual", "filter":1 }}]}`,
+		`{ "glue":"and", "rules":[{ "field": "json:cfg.b:numeric", "filter":"greaterOrEqual", "value":1 }]}`,
 		"(\"cfg\"->'b')::numeric >= $1",
 		"1",
 	},
 	{
-		`{ "glue":"and", "rules":[{ "field": "json:cfg.a", "condition":{ "type":"contains", "filter":1 }}]}`,
+		`{ "glue":"and", "rules":[{ "field": "json:cfg.a", "filter":"contains", "value":1 }]}`,
 		"(\"cfg\"->'a')::text LIKE '\"%' || $1 || '%\"'",
 		"1",
 	},
 	{
-		`{ "glue":"and", "rules":[{ "field": "json:cfg.a", "condition":{ "type":"notContains", "filter":1 }}]}`,
+		`{ "glue":"and", "rules":[{ "field": "json:cfg.a", "filter":"notContains", "value":1 }]}`,
 		"(\"cfg\"->'a')::text NOT LIKE '\"%' || $1 || '%\"'",
 		"1",
 	},
 	{
-		`{ "glue":"and", "rules":[{ "field": "json:cfg.c:date", "condition":{ "type":"equal", "filter":"2006/01/02" }}]}`,
+		`{ "glue":"and", "rules":[{ "field": "json:cfg.c:date", "filter":"equal", "value":"2006/01/02" }]}`,
 		"CAST((\"cfg\"->'c')::text AS DATE) = $1",
 		`2006/01/02`,
 	},
 	{
-		`{ "glue":"and", "rules":[{ "field": "json:cfg.c:date", "condition":{ "type":"notBetween", "filter":{ "start":"2006/01/02", "end":"2006/01/9" } }}]}`,
+		`{ "glue":"and", "rules":[{ "field": "json:cfg.c:date", "filter":"notBetween", "value":{ "start":"2006/01/02", "end":"2006/01/9" } }]}`,
 		"( CAST((\"cfg\"->'c')::text AS DATE) < $1 OR CAST((\"cfg\"->'c')::text AS DATE) > $2 )",
 		`2006/01/02,2006/01/9`,
 	},
