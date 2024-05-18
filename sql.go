@@ -21,9 +21,12 @@ type DBDriver interface {
 type Filter struct {
 	Glue      string        `json:"glue"`
 	Field     string        `json:"field"`
-	Condition Condition     `json:"condition"`
+	Type      string        `json:"type"`
+	Predicate string        `json:"predicate"`
+	Filter    string        `json:"filter"`
+	Value     interface{}   `json:"value"`
 	Includes  []interface{} `json:"includes"`
-	Kids      []Filter      `json:"rules"`
+	Rules     []Filter      `json:"rules"`
 }
 
 type CustomOperation func(string, string, []interface{}) (string, []interface{}, error)
@@ -54,6 +57,15 @@ func inSQL(field string, data []interface{}, db DBDriver) (string, []interface{}
 	return sql, data, nil
 }
 
+func (f *Filter) getValues() []interface{} {
+	valueMap, ok := f.Value.(map[string]interface{})
+	if !ok {
+		return []interface{}{f.Value}
+	}
+
+	return []interface{}{valueMap["start"], valueMap["end"]}
+}
+
 func GetSQL(data Filter, config *SQLConfig, dbArr ...DBDriver) (string, []interface{}, error) {
 	var db DBDriver
 	if len(dbArr) > 0 {
@@ -62,7 +74,7 @@ func GetSQL(data Filter, config *SQLConfig, dbArr ...DBDriver) (string, []interf
 		db = MySQL{}
 	}
 
-	if data.Kids == nil {
+	if data.Rules == nil {
 		if data.Field == "" {
 			return "", make([]interface{}, 0), nil
 		}
@@ -77,8 +89,8 @@ func GetSQL(data Filter, config *SQLConfig, dbArr ...DBDriver) (string, []interf
 			return inSQL(name, data.Includes, db)
 		}
 
-		values := data.Condition.getValues()
-		switch data.Condition.Rule {
+		values := data.getValues()
+		switch data.Filter {
 		case "":
 			return "", NoValues, nil
 		case "equal":
@@ -132,19 +144,19 @@ func GetSQL(data Filter, config *SQLConfig, dbArr ...DBDriver) (string, []interf
 		}
 
 		if config != nil && config.Operations != nil {
-			op, opOk := config.Operations[data.Condition.Rule]
+			op, opOk := config.Operations[data.Filter]
 			if opOk {
-				return op(name, data.Condition.Rule, data.Condition.getValues())
+				return op(name, data.Filter, values)
 			}
 		}
 
-		return "", NoValues, fmt.Errorf("unknown operation: %s", data.Condition.Rule)
+		return "", NoValues, fmt.Errorf("unknown operation: %s", data.Filter)
 	}
 
-	out := make([]string, 0, len(data.Kids))
+	out := make([]string, 0, len(data.Rules))
 	values := make([]interface{}, 0)
 
-	for _, r := range data.Kids {
+	for _, r := range data.Rules {
 		subSql, subValues, err := GetSQL(r, config, db)
 		if err != nil {
 			return "", nil, err
@@ -161,7 +173,7 @@ func GetSQL(data Filter, config *SQLConfig, dbArr ...DBDriver) (string, []interf
 	}
 
 	outStr := strings.Join(out, glue)
-	if len(data.Kids) > 1 {
+	if len(data.Rules) > 1 {
 		outStr = "( " + outStr + " )"
 	}
 
