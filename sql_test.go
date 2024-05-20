@@ -11,6 +11,7 @@ var aAndB = `{ "glue":"and", "rules":[{ "field": "a", "filter":"less", "value":1
 var aOrB = `{ "glue":"or", "rules":[{ "field": "a", "filter":"less", "value":1}, { "field": "b", "filter":"greater", "value":"abc" }]}`
 var cOrC = `{ "glue":"or", "rules":[{ "field": "a", "filter":"is null" }, { "field": "b", "filter":"range100", "value":500 }]}`
 var JSONaAndB = `{ "glue":"and", "rules":[{ "field": "json:cfg.a", "filter":"less", "value":1}, { "field": "json:cfg.b", "filter":"greater", "value":"abc" }]}`
+var aPred = `{ "glue":"and", "rules":[{ "field": "a", "filter":"greater", "type": "number", "predicate": "month","value": 10 }, { "field": "a", "filter":"less", "type": "number", "predicate": "year","value": 2024 }]}`
 
 var cases = [][]string{
 	{`{}`, "", "", ""},
@@ -447,7 +448,7 @@ func TestWhitelistPG(t *testing.T) {
 func TestCustomOperation(t *testing.T) {
 	format, err := FromJSON([]byte(cOrC))
 	if err != nil {
-		t.Errorf("can't parse json\nj: %s\n%f", aAndB, err)
+		t.Errorf("can't parse json\nj: %s\n%f", cOrC, err)
 		return
 	}
 
@@ -483,6 +484,90 @@ func TestCustomOperation(t *testing.T) {
 	check = "500,500"
 	if valsStr != check {
 		t.Errorf("wrong sql generated\nj: %s\ns: %s\nr: %s", cOrC, check, valsStr)
+		return
+	}
+}
+
+func TestCustomPredicate(t *testing.T) {
+	format, err := FromJSON([]byte(aPred))
+	if err != nil {
+		t.Errorf("can't parse json\nj: %s\n%f", aPred, err)
+		return
+	}
+
+	sql, vals, err := GetSQL(format, &SQLConfig{
+		Predicates: map[string]CustomPredicate{
+			"month": func(n string, p string, values []interface{}) (string, []interface{}, error) {
+				return fmt.Sprintf("month(%s)", n), values, nil
+			},
+			"year": func(n string, p string, values []interface{}) (string, []interface{}, error) {
+				return fmt.Sprintf("year(%s)", n), values, nil
+			},
+		},
+	})
+
+	if err != nil {
+		t.Errorf("can't generate sql: %s\n%f", aPred, err)
+		return
+	}
+
+	check := "( month(a) > ? AND year(a) < ? )"
+	if sql != check {
+		t.Errorf("wrong sql generated\nj: %s\ns: %s\nr: %s", aPred, check, sql)
+		return
+	}
+
+	valsStr, err := anyToStringArray(vals)
+	if err != nil {
+		t.Errorf("can't convert parameters\nj: %s\n%f", aPred, err)
+		return
+	}
+
+	check = "10,2024"
+	if valsStr != check {
+		t.Errorf("wrong sql generated\nj: %s\ns: %s\nr: %s", aPred, check, valsStr)
+		return
+	}
+}
+
+func TestCustomPredicatePG(t *testing.T) {
+	format, err := FromJSON([]byte(aPred))
+	if err != nil {
+		t.Errorf("can't parse json\nj: %s\n%f", aPred, err)
+		return
+	}
+
+	sql, vals, err := GetSQL(format, &SQLConfig{
+		Predicates: map[string]CustomPredicate{
+			"month": func(n string, p string, values []interface{}) (string, []interface{}, error) {
+				return fmt.Sprintf("date_part('month', %s)", n), values, nil
+			},
+			"year": func(n string, p string, values []interface{}) (string, []interface{}, error) {
+				return fmt.Sprintf("date_part('year', %s)", n), values, nil
+			},
+		},
+	}, &PostgreSQL{})
+
+	if err != nil {
+		t.Errorf("can't generate sql: %s\n%f", aPred, err)
+		return
+	}
+
+	check := "( date_part('month', a) > $1 AND date_part('year', a) < $2 )"
+	if sql != check {
+		t.Errorf("wrong sql generated\nj: %s\ns: %s\nr: %s", aPred, check, sql)
+		return
+	}
+
+	valsStr, err := anyToStringArray(vals)
+	if err != nil {
+		t.Errorf("can't convert parameters\nj: %s\n%f", aPred, err)
+		return
+	}
+
+	check = "10,2024"
+	if valsStr != check {
+		t.Errorf("wrong sql generated\nj: %s\ns: %s\nr: %s", aPred, check, valsStr)
 		return
 	}
 }

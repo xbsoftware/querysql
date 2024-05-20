@@ -29,13 +29,24 @@ type Filter struct {
 	Rules     []Filter      `json:"rules"`
 }
 
+func (f *Filter) getValues() []interface{} {
+	valueMap, ok := f.Value.(map[string]interface{})
+	if !ok {
+		return []interface{}{f.Value}
+	}
+
+	return []interface{}{valueMap["start"], valueMap["end"]}
+}
+
 type CustomOperation func(string, string, []interface{}) (string, []interface{}, error)
+type CustomPredicate func(string, string, []interface{}) (string, []interface{}, error)
 
 type CheckFunction = func(string) bool
 type SQLConfig struct {
 	WhitelistFunc CheckFunction
 	Whitelist     map[string]bool
 	Operations    map[string]CustomOperation
+	Predicates    map[string]CustomPredicate
 }
 
 func FromJSON(text []byte) (Filter, error) {
@@ -55,15 +66,6 @@ func inSQL(field string, data []interface{}, db DBDriver) (string, []interface{}
 
 	sql := fmt.Sprintf("%s IN(%s)", field, strings.Join(marks, ","))
 	return sql, data, nil
-}
-
-func (f *Filter) getValues() []interface{} {
-	valueMap, ok := f.Value.(map[string]interface{})
-	if !ok {
-		return []interface{}{f.Value}
-	}
-
-	return []interface{}{valueMap["start"], valueMap["end"]}
 }
 
 func GetSQL(data Filter, config *SQLConfig, dbArr ...DBDriver) (string, []interface{}, error) {
@@ -90,6 +92,17 @@ func GetSQL(data Filter, config *SQLConfig, dbArr ...DBDriver) (string, []interf
 		}
 
 		values := data.getValues()
+
+		var err error
+		if config != nil && config.Predicates != nil {
+			if pr, prOk := config.Predicates[data.Predicate]; prOk {
+				name, values, err = pr(name, data.Predicate, values)
+				if err != nil {
+					return "", NoValues, err
+				}
+			}
+		}
+
 		switch data.Filter {
 		case "":
 			return "", NoValues, nil
@@ -144,8 +157,7 @@ func GetSQL(data Filter, config *SQLConfig, dbArr ...DBDriver) (string, []interf
 		}
 
 		if config != nil && config.Operations != nil {
-			op, opOk := config.Operations[data.Filter]
-			if opOk {
+			if op, opOk := config.Operations[data.Filter]; opOk {
 				return op(name, data.Filter, values)
 			}
 		}
