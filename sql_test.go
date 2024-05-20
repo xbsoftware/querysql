@@ -497,11 +497,11 @@ func TestCustomPredicate(t *testing.T) {
 
 	sql, vals, err := GetSQL(format, &SQLConfig{
 		Predicates: map[string]CustomPredicate{
-			"month": func(n string, p string, values []interface{}) (string, []interface{}, error) {
-				return fmt.Sprintf("month(%s)", n), values, nil
+			"month": func(n string, p string) (string, error) {
+				return fmt.Sprintf("month(%s)", n), nil
 			},
-			"year": func(n string, p string, values []interface{}) (string, []interface{}, error) {
-				return fmt.Sprintf("year(%s)", n), values, nil
+			"year": func(n string, p string) (string, error) {
+				return fmt.Sprintf("year(%s)", n), nil
 			},
 		},
 	})
@@ -539,11 +539,11 @@ func TestCustomPredicatePG(t *testing.T) {
 
 	sql, vals, err := GetSQL(format, &SQLConfig{
 		Predicates: map[string]CustomPredicate{
-			"month": func(n string, p string, values []interface{}) (string, []interface{}, error) {
-				return fmt.Sprintf("date_part('month', %s)", n), values, nil
+			"month": func(n string, p string) (string, error) {
+				return fmt.Sprintf("date_part('month', %s)", n), nil
 			},
-			"year": func(n string, p string, values []interface{}) (string, []interface{}, error) {
-				return fmt.Sprintf("date_part('year', %s)", n), values, nil
+			"year": func(n string, p string) (string, error) {
+				return fmt.Sprintf("date_part('year', %s)", n), nil
 			},
 		},
 	}, &PostgreSQL{})

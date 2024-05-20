@@ -39,7 +39,7 @@ func (f *Filter) getValues() []interface{} {
 }
 
 type CustomOperation func(string, string, []interface{}) (string, []interface{}, error)
-type CustomPredicate func(string, string, []interface{}) (string, []interface{}, error)
+type CustomPredicate func(string, string) (string, error)
 
 type CheckFunction = func(string) bool
 type SQLConfig struct {
@@ -96,10 +96,12 @@ func GetSQL(data Filter, config *SQLConfig, dbArr ...DBDriver) (string, []interf
 		var err error
 		if config != nil && config.Predicates != nil {
 			if pr, prOk := config.Predicates[data.Predicate]; prOk {
-				name, values, err = pr(name, data.Predicate, values)
+				name, err = pr(name, data.Predicate)
 				if err != nil {
 					return "", NoValues, err
 				}
+			} else {
+				return "", NoValues, fmt.Errorf("unknown predicate: %s", data.Predicate)
 			}
 		}
 
