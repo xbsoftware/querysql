@@ -7,13 +7,11 @@ Converts JSON config to SQL Query
 {
   "glue": "and",
   "rules": [{
-    "field":"age",
-    "condition":{
-      "type": "less",
-      "filter": 42
-    } 
+    "field": "age",
+    "filter": "less",
+    "value": 42
   },{
-    "field":"region",
+    "field": "region",
     "includes": [1,2,6]
   }] 
 }
@@ -63,10 +61,8 @@ For those operations, both start and end values can be provided
 ```json
 {
     "field":"age",
-    "condition":{
-      "type": "between",
-      "filter": { "start": 10, "end": 99 }
-    } 
+    "filter": "between",
+    "value": { "start": 10, "end": 99 }
   }
 ```
 
