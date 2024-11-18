@@ -1,6 +1,7 @@
 package querysql
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -12,7 +13,54 @@ var aOrB = `{ "glue":"or", "rules":[{ "field": "a", "filter":"less", "value":1},
 var cOrC = `{ "glue":"or", "rules":[{ "field": "a", "filter":"is null" }, { "field": "b", "filter":"range100", "value":500 }]}`
 var JSONaAndB = `{ "glue":"and", "rules":[{ "field": "json:cfg.a", "filter":"less", "value":1}, { "field": "json:cfg.b", "filter":"greater", "value":"abc" }]}`
 var aPred = `{ "glue":"and", "rules":[{ "field": "a", "filter":"greater", "type": "number", "predicate": "month","value": 10 }, { "field": "a", "filter":"less", "type": "number", "predicate": "year","value": 2024 }]}`
-
+var test = `{
+	"glue": "or",
+	"rules": [
+		{
+			"field": "first_name",
+			"includes": [
+				"Diana"
+			],
+			"alias": "name"
+		},
+		{
+			"field": "first_name",
+			"includes": [
+				"Alex"
+			],
+			"alias": "other_name"
+		},
+		{
+			"glue": "and",
+			"rules": [
+				{
+					"field": "birthdate",
+					"condition": {
+						"type": "greater",
+						"filter": "1975-03-01T21:00:00.000Z"
+					}
+				},
+				{
+					"field": "job",
+					"condition": {
+						"type": "contains",
+						"filter": "Lead"
+					}
+				}
+			]
+		},
+		{
+			"field": "age",
+			"type": "number",
+			"condition": {
+				"filter": "30",
+				"type": "less"
+			},
+			"includes": [],
+			"alias": "other_name"
+		}
+	]
+}`
 var cases = [][]string{
 	{`{}`, "", "", ""},
 	{
@@ -152,6 +200,59 @@ var cases = [][]string{
 		"a IN(?,?,?)",
 		"a IN($1,$2,$3)",
 		"a,b,c",
+	},
+}
+
+var casesWithAliases = [][]string{
+	{
+		`{ "glue":"and", "rules":[{ "field": "a", "filter":"less", "value":1, "alias": "userId"}]}`,
+		"a < ?",
+		"a < $1",
+		"3",
+		`{ "userId": 3 }`, // aliases
+	},
+	{
+		`{ "glue":"and", "rules":[{ "field": "a", "filter":"greater", "value":1, "alias": "userId"}]}`,
+		"a > ?",
+		"a > $1",
+		"1",
+		`{}`, // aliases
+	},
+	{
+		`{ "glue":"and", "rules":[{ "field": "a", "filter":"equal", "value":1}]}`,
+		"a = ?",
+		"a = $1",
+		"1",
+		`{ "userId": 3}`, // aliases
+	},
+	{
+		`{ "glue":"and", "rules":[{ "field": "a", "filter":"notEqual", "value":1, "alias": "userId"}]}`,
+		"a <> ?",
+		"a <> $1",
+		"3",
+		`{ "userId": 3 }`, // aliases
+	},
+	{
+		aAndB,
+		"( a < ? AND b > ? )",
+		"( a < $1 AND b > $2 )",
+		"1,abc",
+		// aliases
+		`{ "a": 4, "b": "def" }`,
+	},
+	{
+		`{ "glue":"and", "rules":[{ "field": "a", "includes":[1,2,3], "alias": "ids" }]}`,
+		"a IN(?,?,?)",
+		"a IN($1,$2,$3)",
+		"3,4,5",
+		`{ "ids": [3,4,5] }`, // aliases
+	},
+	{
+		`{ "glue":"and", "rules":[{ "field": "a", "includes":["a","b","c"], "alias": "ids" }]}`,
+		"a IN(?,?,?)",
+		"a IN($1,$2,$3)",
+		"c,d,e",
+		`{ "ids": ["c","d","e"] }`, // aliases
 	},
 }
 
@@ -569,5 +670,70 @@ func TestCustomPredicatePG(t *testing.T) {
 	if valsStr != check {
 		t.Errorf("wrong sql generated\nj: %s\ns: %s\nr: %s", aPred, check, valsStr)
 		return
+	}
+}
+
+func TestAlias(t *testing.T) {
+	for _, line := range casesWithAliases {
+		aliases := make(map[string]interface{})
+		err := json.Unmarshal([]byte(line[4]), &aliases)
+
+		sqlConfig := SQLConfig{Aliases: aliases}
+		if err != nil {
+			t.Errorf("can't parse json aliases\nj: %s\n%f", line[4], err)
+			continue
+		}
+
+		format, err := FromJSON([]byte(line[0]))
+		if err != nil {
+			t.Errorf("can't parse json\nj: %s\n%f", line[0], err)
+			continue
+		}
+
+		// mySQL
+		sql, vals, err := GetSQL(format, &sqlConfig)
+		if err != nil {
+			t.Errorf("can't generate sql\nj: %s\n%f", line[0], err)
+			continue
+		}
+
+		if sql != line[1] {
+			t.Errorf("wrong sql generated\nj: %s\ns: %s\nr: %s", line[0], line[1], sql)
+			continue
+		}
+
+		valsStr, err := anyToStringArray(vals)
+		if err != nil {
+			t.Errorf("can't convert parameters\nj: %s\n%f", line[0], err)
+			continue
+		}
+
+		if valsStr != line[3] {
+			t.Errorf("wrong sql generated (values)\nj: %s\ns: %s\nr: %s", line[0], line[3], valsStr)
+			continue
+		}
+
+		// postgreSQL
+		sqlPG, valsPG, err := GetSQL(format, &sqlConfig, &PostgreSQL{})
+		if err != nil {
+			t.Errorf("can't generate sql\nj: %s\n%f", line[0], err)
+			continue
+		}
+
+		if sqlPG != line[2] {
+			t.Errorf("wrong sql generated\nj: %s\ns: %s\nr: %s", line[0], line[2], sql)
+			continue
+		}
+
+		valsStrPG, err := anyToStringArray(valsPG)
+		if err != nil {
+			t.Errorf("can't convert parameters\nj: %s\n%f", line[0], err)
+			continue
+		}
+
+		if valsStrPG != line[3] {
+			t.Errorf("wrong sql generated (values)\nj: %s\ns: %s\nr: %s", line[0], line[3], valsStrPG)
+			continue
+		}
 	}
 }
