@@ -26,16 +26,19 @@ type Filter struct {
 	Filter    string        `json:"filter"`
 	Value     interface{}   `json:"value"`
 	Includes  []interface{} `json:"includes"`
+	Alias     string        `json:"alias"`
 	Rules     []Filter      `json:"rules"`
 }
 
-func (f *Filter) getValues() []interface{} {
-	valueMap, ok := f.Value.(map[string]interface{})
-	if !ok {
-		return []interface{}{f.Value}
+func getValues(i interface{}) []interface{} {
+	switch values := i.(type) {
+	case map[string]interface{}:
+		return []interface{}{values["start"], values["end"]}
+	case []interface{}:
+		return values
+	default:
+		return []interface{}{i}
 	}
-
-	return []interface{}{valueMap["start"], valueMap["end"]}
 }
 
 type CustomOperation func(string, string, []interface{}) (string, []interface{}, error)
@@ -47,6 +50,7 @@ type SQLConfig struct {
 	Whitelist     map[string]bool
 	Operations    map[string]CustomOperation
 	Predicates    map[string]CustomPredicate
+	Aliases       map[string]interface{}
 }
 
 func FromJSON(text []byte) (Filter, error) {
@@ -87,13 +91,24 @@ func GetSQL(data Filter, config *SQLConfig, dbArr ...DBDriver) (string, []interf
 
 		name, isDynamicField := db.IsJSON(data.Field)
 
+		var err error
+		values := getValues(data.Value)
+
+		if config != nil && config.Aliases != nil && data.Alias != "" {
+			if alias, ok := config.Aliases[data.Alias]; ok {
+				aliases := getValues(alias)
+				if len(data.Includes) > 0 {
+					return inSQL(name, aliases, db)
+				} else {
+					values = aliases
+				}
+			}
+		}
+
 		if len(data.Includes) > 0 {
 			return inSQL(name, data.Includes, db)
 		}
 
-		values := data.getValues()
-
-		var err error
 		if config != nil && config.Predicates != nil {
 			if pr, prOk := config.Predicates[data.Predicate]; prOk {
 				name, err = pr(name, data.Predicate)
@@ -202,7 +217,7 @@ func checkWhitelist(name string, config *SQLConfig) bool {
 		return true
 	}
 
-	if config.Whitelist != nil {
+	if config.Whitelist != nil && name != "" {
 		if config.Whitelist[name] {
 			return true
 		}
