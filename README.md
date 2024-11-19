@@ -71,3 +71,20 @@ For those operations, both start and end values can be provided
 ```
 
 if only *start* or *end* provided, the operation will change to *less* or *greater* automatically
+
+### aliases
+
+Aliases are needed to replace the rule name later
+
+```json
+{
+    "field":"age",
+    "alias":"years",
+    "condition":{
+      "type": "between",
+      "filter": { "start": 10, "end": 99 }
+    }
+  }
+```
+
+aliases are returned in the configuration

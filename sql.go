@@ -23,6 +23,7 @@ type Filter struct {
 	Field     string        `json:"field"`
 	Condition Condition     `json:"condition"`
 	Includes  []interface{} `json:"includes"`
+	Alias     string        `json:"alias"`
 	Kids      []Filter      `json:"rules"`
 }
 
@@ -33,6 +34,7 @@ type SQLConfig struct {
 	WhitelistFunc CheckFunction
 	Whitelist     map[string]bool
 	Operations    map[string]CustomOperation
+	Aliases       map[string]string
 }
 
 func FromJSON(text []byte) (Filter, error) {
@@ -65,6 +67,10 @@ func GetSQL(data Filter, config *SQLConfig, dbArr ...DBDriver) (string, []interf
 	if data.Kids == nil {
 		if data.Field == "" {
 			return "", make([]interface{}, 0), nil
+		}
+
+		if config != nil && config.Aliases != nil && data.Alias != "" {
+			config.Aliases[data.Field] = data.Alias
 		}
 
 		if !checkWhitelist(data.Field, config) {
@@ -147,6 +153,9 @@ func GetSQL(data Filter, config *SQLConfig, dbArr ...DBDriver) (string, []interf
 	for _, r := range data.Kids {
 		subSql, subValues, err := GetSQL(r, config, db)
 		if err != nil {
+			if config != nil && len(config.Aliases) > 0 {
+				config.Aliases = make(map[string]string)
+			}
 			return "", nil, err
 		}
 		out = append(out, subSql)

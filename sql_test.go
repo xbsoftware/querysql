@@ -1,6 +1,7 @@
 package querysql
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -209,6 +210,25 @@ var psqlCases = [][]string{
 		`{ "glue":"and", "rules":[{ "field": "json:cfg.c:date", "condition":{ "type":"notBetween", "filter":{ "start":"2006/01/02", "end":"2006/01/9" } }}]}`,
 		"( CAST((\"cfg\"->'c')::text AS DATE) < $1 OR CAST((\"cfg\"->'c')::text AS DATE) > $2 )",
 		`2006/01/02,2006/01/9`,
+	},
+}
+
+var aliases = [][]string{
+	{
+		`{}`,
+		`{}`,
+	},
+	{
+		`{ "glue":"and", "rules":[{ "field": "a", "condition":{ "type":"less", "filter":1 }}]}`,
+		`{}`,
+	},
+	{
+		`{ "glue":"or", "rules":[{ "field": "a", "alias": "name", "condition":{ "type":"equal", "filter":1 }}]}`,
+		`{"a":"name"}`,
+	},
+	{
+		`{ "glue":"and", "rules":[{ "field": "a", "alias": "b", "condition":{ "type":"notEqual", "filter":1 }},{ "field": "b", "alias": "a", "condition":{ "type":"equal", "filter":2 }}]}`,
+		`{"a":"b","b":"a"}`,
 	},
 }
 
@@ -484,5 +504,36 @@ func TestCustomOperation(t *testing.T) {
 	if valsStr != check {
 		t.Errorf("wrong sql generated\nj: %s\ns: %s\nr: %s", cOrC, check, valsStr)
 		return
+	}
+}
+
+func TestAlias(t *testing.T) {
+	queryConfig := SQLConfig{
+		Aliases: make(map[string]string),
+	}
+
+	for _, line := range aliases {
+		format, err := FromJSON([]byte(line[0]))
+		if err != nil {
+			t.Errorf("can't parse json\nj: %s\n%f", line[0], err)
+			continue
+		}
+
+		_, _, err = GetSQL(format, &queryConfig)
+		if err != nil {
+			t.Errorf("can't generate sql\nj: %s\n%f", line[0], err)
+			continue
+		}
+
+		alias, err := json.Marshal(queryConfig.Aliases)
+		if err != nil {
+			t.Errorf("can't parse json\nj: %s\n%f", queryConfig.Aliases, err)
+			continue
+		}
+
+		if string(alias) != line[1] {
+			t.Errorf("different aliases\nj: %s\ns: %s\n", alias, line[1])
+			continue
+		}
 	}
 }
