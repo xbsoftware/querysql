@@ -3,17 +3,20 @@ JSON to SQL Query
 
 Converts JSON config to SQL Query
 
-```json
+```js
 {
   "glue": "and",
-  "rules": [{
-    "field": "age",
-    "filter": "less",
-    "value": 42
-  },{
-    "field": "region",
-    "includes": [1,2,6]
-  }] 
+  "rules": [
+    {
+      "field": "age",
+      "filter": "less",
+      "value": 42
+    },
+    {
+      "field": "region",
+      "includes": [1,2,6]
+    }
+  ]
 }
 ```
 
@@ -38,7 +41,7 @@ Converts JSON config to SQL Query
 
 Blocks can be nested like next
 
-```json
+```js
 {
   "glue": "and",
   "rules": [
@@ -48,9 +51,9 @@ Blocks can be nested like next
       "rules": [
         ruleC,
         ruleD
-      ] 
+      ]
     }
-  ] 
+  ]
 }
 ```
 
@@ -58,12 +61,15 @@ Blocks can be nested like next
 
 For those operations, both start and end values can be provided
 
-```json
+```js
 {
-    "field":"age",
-    "filter": "between",
-    "value": { "start": 10, "end": 99 }
+  "field": "age",
+  "filter": "between",
+  "value": {
+    "start": 10,
+    "end": 99
   }
+}
 ```
 
 if only *start* or *end* provided, the operation will change to *less* or *greater* automatically
